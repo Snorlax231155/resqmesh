@@ -155,8 +155,10 @@ function App() {
   const loadUrbanFlood = async () => {
     try {
       await fetch(`${API_BASE}/sim/load?scenario=urban_flood`, { method: 'POST' });
-      await fetchInitialData();
       addEvent(`SCENARIO LOADED: URBAN FLOOD`, "SYSTEM");
+      addDecision(`[SCENARIO] Loaded Urban Flood disaster scenario. Seeding initial rescue teams & emergency requests.`);
+      await fetchInitialData();
+      await runDispatchCycle();
     } catch (e) {
       console.error(e);
     }
@@ -167,13 +169,26 @@ function App() {
     const randNode = nodes[Math.floor(Math.random() * nodes.length)];
     const code = `UNIT-${Math.floor(100 + Math.random() * 900)}`;
     try {
-      await fetch(`${API_BASE}/agents`, {
+      const res = await fetch(`${API_BASE}/agents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentCode: code, capacity: 1, currentNodeId: randNode.id })
+        body: JSON.stringify({
+          agentCode: code,
+          name: `Rescue Squad ${code}`,
+          capacity: 1,
+          currentNodeId: randNode.id
+        })
       });
-      addEvent(`SPAWNED RESCUE UNIT ${code}`, "SYSTEM");
-      fetchInitialData();
+      if (!res.ok) {
+        const errText = await res.text();
+        addEvent(`SPAWN UNIT ERR: ${errText}`, "ERROR");
+        return;
+      }
+      const agent = await res.json();
+      addEvent(`+ REGISTERED RESCUE UNIT ${agent.agentCode}`, "AGENT");
+      addDecision(`[AGENT_REGISTERED] Rescue Unit ${agent.agentCode} deployed to Graph Node ${randNode.id.substring(0, 8)}.`);
+      await fetchInitialData();
+      await runDispatchCycle();
     } catch (e) {
       console.error(e);
     }
@@ -182,12 +197,17 @@ function App() {
   const spawnRandomMission = async () => {
     if (nodes.length < 2) return;
     const srcNode = nodes[Math.floor(Math.random() * nodes.length)];
-    const dstNode = nodes[Math.floor(Math.random() * nodes.length)];
+    let dstNode = nodes[Math.floor(Math.random() * nodes.length)];
+    while (dstNode.id === srcNode.id) {
+      dstNode = nodes[Math.floor(Math.random() * nodes.length)];
+    }
     const priorities = ['CRITICAL', 'HIGH', 'NORMAL'];
     const p = priorities[Math.floor(Math.random() * priorities.length)];
     const code = `MED-${Math.floor(100 + Math.random() * 900)}`;
+    const deadlineIso = new Date(Date.now() + 35 * 60 * 1000).toISOString();
+
     try {
-      await fetch(`${API_BASE}/missions`, {
+      const res = await fetch(`${API_BASE}/missions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,11 +215,19 @@ function App() {
           priority: p,
           pickupNodeId: srcNode.id,
           destinationNodeId: dstNode.id,
-          deadlineMinutes: 30
+          deadline: deadlineIso
         })
       });
-      addEvent(`SPAWNED MISSION ${code} (${p})`, "SYSTEM");
-      fetchInitialData();
+      if (!res.ok) {
+        const errText = await res.text();
+        addEvent(`SPAWN MISSION ERR: ${errText}`, "ERROR");
+        return;
+      }
+      const mission = await res.json();
+      addEvent(`+ EMERGENCY SOS CREATED: ${mission.missionCode} (${p})`, "MISSION");
+      addDecision(`[EMERGENCY_SOS] Priority ${p} mission ${mission.missionCode} logged at Pickup Node ${srcNode.id.substring(0, 8)} -> Dest Node ${dstNode.id.substring(0, 8)}.`);
+      await fetchInitialData();
+      await runDispatchCycle();
     } catch (e) {
       console.error(e);
     }
@@ -209,17 +237,24 @@ function App() {
     if (roads.length === 0) return;
     const randRoad = roads[Math.floor(Math.random() * roads.length)];
     try {
-      await fetch(`${API_BASE}/disruptions`, {
+      const res = await fetch(`${API_BASE}/disruptions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          type: 'FLOOD',
           affectedRoadId: randRoad.id,
-          description: `Road Blockage on Segment ${randRoad.id.substring(0,6)}`,
-          delayFactor: 5.0
+          description: `Flash Flood on Road Segment ${randRoad.id.substring(0, 8)}`
         })
       });
-      addEvent(`TRIGGERED ROAD BLOCKAGE`, "SYSTEM");
-      fetchInitialData();
+      if (!res.ok) {
+        const errText = await res.text();
+        addEvent(`DISRUPTION ERR: ${errText}`, "ERROR");
+        return;
+      }
+      addEvent(`🚨 ROAD BLOCKAGE REPORTED`, "DISRUPTION");
+      addDecision(`[DISRUPTION] Road segment ${randRoad.id.substring(0, 8)} blocked by FLASH_FLOOD. Evaluating active mission reroutes.`);
+      await fetchInitialData();
+      await runDispatchCycle();
     } catch (e) {
       console.error(e);
     }
