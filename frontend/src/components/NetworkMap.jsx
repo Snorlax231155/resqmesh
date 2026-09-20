@@ -7,7 +7,7 @@ function FitBounds({ nodes }) {
   useEffect(() => {
     if (nodes.length > 0) {
       const bounds = L.latLngBounds(nodes.map(n => [n.latitude, n.longitude]));
-      map.fitBounds(bounds, { padding: [20, 20] });
+      map.fitBounds(bounds, { padding: [30, 30] });
     }
   }, [nodes, map]);
   return null;
@@ -15,11 +15,11 @@ function FitBounds({ nodes }) {
 
 const getAgentShape = (status) => {
   switch (status) {
-    case 'AVAILABLE': return '<div class="agent-shape shape-circle" style="background: var(--hi-vis);"></div>';
-    case 'ASSIGNED': return '<div class="agent-shape shape-square" style="background: #0B4FA8;"></div>';
+    case 'AVAILABLE': return '<div class="agent-shape shape-circle" style="background: #D4E82B; border: 2px solid #000; box-shadow: 0 0 10px #D4E82B;"></div>';
+    case 'ASSIGNED': return '<div class="agent-shape shape-square" style="background: #0B4FA8; border: 2px solid #FFF; box-shadow: 0 0 10px #0B4FA8;"></div>';
     case 'EN_ROUTE': return '<div class="agent-shape shape-triangle" style="border-bottom-color: #0B4FA8;"></div>';
-    case 'REPOSITIONING': return '<div class="agent-shape shape-diamond" style="background: var(--caution);"></div>';
-    default: return '<div class="agent-shape shape-circle" style="background: var(--ink-muted);"></div>';
+    case 'REPOSITIONING': return '<div class="agent-shape shape-diamond" style="background: #FF8A00; border: 1px solid #000;"></div>';
+    default: return '<div class="agent-shape shape-circle" style="background: #5C584E;"></div>';
   }
 };
 
@@ -31,8 +31,7 @@ const createAgentIcon = (agent) => L.divIcon({
       <div class="atc-leader-line"></div>
       <div class="atc-data-block">
         <div class="atc-header">${agent.agentCode}</div>
-        <div class="atc-body">STS: ${agent.status.substring(0,4)}</div>
-        <div class="atc-body">CAP: ${agent.capacity}</div>
+        <div class="atc-body" style="color: ${agent.status === 'AVAILABLE' ? '#0A5C0D' : '#0B4FA8'}; font-weight: bold;">${agent.status}</div>
       </div>
     </div>
   `,
@@ -43,8 +42,11 @@ const createAgentIcon = (agent) => L.divIcon({
 const createMissionIcon = (priority, status) => L.divIcon({
   className: 'atc-marker',
   html: `
-    <div class="mission-shape" style="background: ${priority === 'CRITICAL' ? '#E4002B' : priority === 'HIGH' ? '#FF8A00' : '#0B4FA8'}; border: 2px solid ${status === 'ASSIGNED' ? '#D4E82B' : '#FFF'};"></div>
-    <div class="mission-label">${priority ? priority.substring(0,4) : 'MSN'}</div>
+    <div style="position: relative;">
+      <div class="mission-pulse-ring" style="border-color: ${priority === 'CRITICAL' ? '#E4002B' : '#FF8A00'};"></div>
+      <div class="mission-shape" style="background: ${priority === 'CRITICAL' ? '#E4002B' : priority === 'HIGH' ? '#FF8A00' : '#0B4FA8'}; border: 2px solid #FFF;"></div>
+      <div class="mission-label">🚨 ${priority ? priority : 'SOS'}</div>
+    </div>
   `,
   iconSize: [0, 0],
   iconAnchor: [0, 0]
@@ -77,62 +79,39 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
     return map;
   }, [nodes]);
 
-  const disruptedEdgeIds = useMemo(() => new Set(disruptions.filter(d => d.active).map(d => d.affectedRoadId)), [disruptions]);
+  const disruptedEdges = useMemo(() => {
+    return disruptions.filter(d => d.active);
+  }, [disruptions]);
 
-  // Compute active routes between assigned agents and their missions
-  const activeAssignmentRoutes = useMemo(() => {
-    const routes = [];
-    agents.forEach(agent => {
-      if (agent.assignedMissionId || agent.status === 'ASSIGNED' || agent.status === 'EN_ROUTE') {
-        const mission = missions.find(m => m.id === agent.assignedMissionId || m.assignedAgentId === agent.id);
-        if (mission) {
-          const agentNode = nodeMap[agent.currentNodeId];
-          const pickupNode = nodeMap[mission.pickupNodeId];
-          const destNode = nodeMap[mission.destinationNodeId];
-          if (agentNode && pickupNode) {
-            routes.push({
-              id: `${agent.id}-${mission.id}`,
-              agentCode: agent.agentCode,
-              missionCode: mission.missionCode,
-              coords: [
-                [agentNode.latitude, agentNode.longitude],
-                [pickupNode.latitude, pickupNode.longitude],
-                ...(destNode ? [[destNode.latitude, destNode.longitude]] : [])
-              ]
-            });
-          }
-        }
-      }
-    });
-    return routes;
-  }, [agents, missions, nodeMap]);
+  const disruptedEdgeIds = useMemo(() => new Set(disruptedEdges.map(d => d.affectedRoadId)), [disruptedEdges]);
 
   if (nodes.length === 0) {
-    return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="title">Loading Graph...</div>;
+    return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="title">Loading Road Network Graph...</div>;
   }
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Map Control Bar Overlay */}
+      {/* Map Style Overlay Selector */}
       <div style={{
         position: 'absolute',
-        top: 10,
-        left: 10,
+        top: 12,
+        left: 12,
         zIndex: 1000,
         background: 'rgba(255,255,255,0.95)',
-        border: '1px solid var(--rule)',
-        padding: '6px 10px',
+        border: '1px solid #14140F',
+        padding: '6px 12px',
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        borderRadius: '4px'
       }}>
         <span className="mono" style={{ fontSize: '11px', fontWeight: 'bold', color: '#000' }}>MAP STYLE:</span>
         <select 
           value={tileStyle} 
           onChange={e => setTileStyle(e.target.value)}
           className="mono"
-          style={{ background: '#fff', color: '#000', border: '1px solid var(--rule)', padding: '2px 6px', fontSize: '11px', fontWeight: 'bold' }}
+          style={{ background: '#fff', color: '#000', border: '1px solid #ccc', padding: '3px 8px', fontSize: '11px', fontWeight: 'bold' }}
         >
           {Object.entries(TILE_STYLES).map(([key, style]) => (
             <option key={key} value={key}>{style.name}</option>
@@ -140,56 +119,60 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
         </select>
       </div>
 
-      {/* Map Legend Overlay */}
+      {/* High Visibility Map Legend */}
       <div style={{
         position: 'absolute',
-        top: 10,
-        right: 10,
+        top: 12,
+        right: 12,
         zIndex: 1000,
-        background: 'rgba(20, 20, 15, 0.9)',
+        background: 'rgba(14, 14, 10, 0.95)',
         color: '#FFF',
-        border: '1px solid var(--rule)',
-        padding: '8px 12px',
+        border: '2px solid #0B4FA8',
+        padding: '10px 14px',
         fontSize: '11px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        borderRadius: '2px'
+        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        borderRadius: '4px'
       }} className="mono">
-        <div style={{ fontWeight: 'bold', borderBottom: '1px solid #444', paddingBottom: '3px', marginBottom: '6px', color: '#D4E82B' }}>
-          MAP LEGEND & STATUS
+        <div style={{ fontWeight: 'bold', borderBottom: '1px solid #444', paddingBottom: '4px', marginBottom: '8px', color: '#D4E82B', fontSize: '12px' }}>
+          TACTICAL MAP LEGEND
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 12px', alignItems: 'center' }}>
-          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: '#D4E82B' }}></span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', alignItems: 'center' }}>
+          <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: '#D4E82B', border: '1px solid #000', boxShadow: '0 0 6px #D4E82B' }}></span>
           <span>Available Rescue Unit</span>
-          <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#0B4FA8' }}></span>
-          <span>Assigned Unit (En Route)</span>
-          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: '#E4002B' }}></span>
-          <span>SOS Emergency Request</span>
-          <span style={{ display: 'inline-block', width: '16px', height: '3px', background: '#E4002B', borderTop: '1px dashed #FFF' }}></span>
-          <span>Flooded / Blocked Road</span>
-          <span style={{ display: 'inline-block', width: '16px', height: '3px', background: '#0B4FA8' }}></span>
-          <span>Active Dispatch Route</span>
+          <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#0B4FA8', border: '1px solid #FFF' }}></span>
+          <span>Assigned Rescue Unit</span>
+          <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: '#E4002B', boxShadow: '0 0 6px #E4002B' }}></span>
+          <span>Emergency SOS Victim</span>
+          <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#E4002B', borderTop: '1px dashed #FFF' }}></span>
+          <span style={{ color: '#FF8A00', fontWeight: 'bold' }}>Flooded / Blocked Road</span>
+          <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#0B4FA8' }}></span>
+          <span>Dynamic A* Dispatch Path</span>
         </div>
       </div>
 
       <style>{`
         .atc-marker { overflow: visible !important; }
-        .agent-shape { width: 12px; height: 12px; position: absolute; left: -6px; top: -6px; box-shadow: 0 0 6px rgba(0,0,0,0.5); }
+        .agent-shape { width: 14px; height: 14px; position: absolute; left: -7px; top: -7px; }
         .shape-circle { border-radius: 50%; }
-        .shape-square { border: 1px solid #fff; }
+        .shape-square { }
         .shape-diamond { transform: rotate(45deg); }
-        .shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 12px solid; left: -7px; top: -6px; }
+        .shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid; left: -8px; top: -7px; }
         .atc-leader-line { position: absolute; left: 0; top: 0; width: 24px; height: 1px; background: #000; transform: rotate(-45deg); transform-origin: 0 0; }
-        .atc-data-block { position: absolute; left: 18px; top: -30px; background: rgba(255,255,255,0.95); border: 1px solid #14140F; padding: 2px 4px; min-width: 55px; font-family: var(--font-mono); font-size: 10px; color: #14140F; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        .atc-header { font-weight: bold; border-bottom: 1px solid #ccc; margin-bottom: 1px; }
-        .atc-body { line-height: 1.1; }
-        .mission-shape { width: 10px; height: 10px; position: absolute; left: -5px; top: -5px; border-radius: 50%; box-shadow: 0 0 6px rgba(228,0,43,0.8); }
-        .mission-label { position: absolute; left: 7px; top: -7px; font-family: var(--font-mono); font-size: 9px; font-weight: bold; color: #E4002B; text-shadow: 0 0 3px #FFF, 0 0 3px #FFF; }
+        .atc-data-block { position: absolute; left: 18px; top: -32px; background: rgba(255,255,255,0.98); border: 1.5px solid #14140F; padding: 2px 6px; min-width: 65px; font-family: var(--font-mono); font-size: 10px; color: #14140F; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border-radius: 2px; }
+        .atc-header { font-weight: bold; border-bottom: 1px solid #bbb; margin-bottom: 1px; color: #000; }
+        .mission-shape { width: 12px; height: 12px; position: absolute; left: -6px; top: -6px; border-radius: 50%; box-shadow: 0 0 10px rgba(228,0,43,0.9); }
+        .mission-pulse-ring { width: 26px; height: 26px; position: absolute; left: -13px; top: -13px; border-radius: 50%; border: 2px solid #E4002B; animation: pulseRing 1.8s infinite ease-out; }
+        @keyframes pulseRing {
+          0% { transform: scale(0.5); opacity: 1; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
+        .mission-label { position: absolute; left: 9px; top: -8px; font-family: var(--font-mono); font-size: 10px; font-weight: bold; color: #E4002B; text-shadow: 0 0 4px #FFF, 0 0 4px #FFF; white-space: nowrap; }
       `}</style>
 
       <MapContainer center={[40.73, -73.99]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={true} preferCanvas={true} attributionControl={true}>
         <FitBounds nodes={nodes} />
         
-        {/* OpenStreetMap / Esri Clean Map Tiles without API keys */}
+        {/* OpenStreetMap / Esri Clean Map Tiles */}
         <TileLayer
           url={TILE_STYLES[tileStyle].url}
           attribution={TILE_STYLES[tileStyle].attribution}
@@ -207,33 +190,19 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
               key={road.id} 
               positions={[[src.latitude, src.longitude], [dst.latitude, dst.longitude]]} 
               pathOptions={{ 
-                color: isDisrupted ? '#E4002B' : '#4A4A45', 
-                weight: isDisrupted ? 4 : 1.5, 
-                opacity: isDisrupted ? 0.95 : 0.45,
-                dashArray: isDisrupted ? '6, 6' : null 
+                color: isDisrupted ? '#E4002B' : '#333330', 
+                weight: isDisrupted ? 5 : 1.5, 
+                opacity: isDisrupted ? 1.0 : 0.45,
+                dashArray: isDisrupted ? '8, 8' : null 
               }} 
             />
           );
         })}
 
-        {/* Active Dispatch Route Polylines */}
-        {activeAssignmentRoutes.map(r => (
-          <Polyline
-            key={r.id}
-            positions={r.coords}
-            pathOptions={{
-              color: '#0B4FA8',
-              weight: 4,
-              opacity: 0.9,
-              dashArray: '8, 8'
-            }}
-          />
-        ))}
+        {/* Graph Nodes Marks */}
+        {nodes.map(n => <CircleMarker key={`n-${n.id}`} center={[n.latitude, n.longitude]} radius={1.2} pathOptions={{ color: '#222220', fillOpacity: 0.6 }} />)}
 
-        {/* Nodes Marks */}
-        {nodes.map(n => <CircleMarker key={`n-${n.id}`} center={[n.latitude, n.longitude]} radius={1.2} pathOptions={{ color: '#2A2A25', fillOpacity: 0.7 }} />)}
-
-        {/* Repositioning Routes */}
+        {/* Real-time A* Repositioning & Dynamic Dispatch Paths */}
         {repositioningRoutes.map(route => {
           const positions = (route.routeNodeIds || []).map(id => {
             const n = nodeMap[id];
@@ -241,11 +210,11 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
           }).filter(Boolean);
           
           return (
-            <Polyline key={`repo-${route._id || Math.random()}`} positions={positions} pathOptions={{ color: '#FF8A00', weight: 3, dashArray: '6, 8', opacity: 0.85 }} />
+            <Polyline key={`repo-${route._id || Math.random()}`} positions={positions} pathOptions={{ color: '#0B4FA8', weight: 5, opacity: 0.95, dashArray: '8, 8' }} />
           );
         })}
 
-        {/* Missions */}
+        {/* SOS Emergency Missions */}
         {missions.filter(m => m.status !== 'COMPLETED').map(m => {
           const locNode = nodeMap[m.pickupNodeId];
           if (!locNode) return null;
@@ -262,5 +231,6 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
     </div>
   );
 }
+
 
 
