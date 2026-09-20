@@ -476,26 +476,34 @@ function App() {
         </div>
       )}
 
-      {/* Live Demo HUD Narration Banner */}
+      {/* Live Demo Floating HUD Toast Banner */}
       {demoBanner && (
         <div style={{ 
-          background: 'linear-gradient(90deg, #0B4FA8 0%, #14140F 100%)', 
+          position: 'fixed',
+          top: '85px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          background: 'rgba(20, 20, 15, 0.95)',
           color: '#FFF', 
-          padding: '8px 20px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justify: 'space-between',
-          borderBottom: '2px solid #D4E82B',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+          padding: '6px 16px', 
+          borderRadius: '24px',
+          border: '1.5px solid #D4E82B',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          whiteSpace: 'nowrap',
+          maxWidth: '90vw'
         }} className="mono">
-          <div>
-            <span style={{ background: '#D4E82B', color: '#000', fontWeight: 'bold', padding: '2px 8px', marginRight: '12px', fontSize: '11px' }}>
-              DEMO STEP {demoBanner.step}
-            </span>
-            <strong style={{ fontSize: '13px', letterSpacing: '0.05em', color: '#FFF' }}>{demoBanner.title}</strong>
-            <div style={{ fontSize: '11px', color: '#E0E0E0', marginTop: '2px' }}>{demoBanner.desc}</div>
+          <span style={{ background: '#D4E82B', color: '#000', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px', fontSize: '10px' }}>
+            STEP {demoBanner.step}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#FFF' }}>{demoBanner.title}</span>
+            <span style={{ fontSize: '10px', color: '#CCC' }}>{demoBanner.desc}</span>
           </div>
-          <div style={{ fontSize: '18px' }}>⚡</div>
+          <span style={{ color: '#D4E82B', fontSize: '14px' }}>⚡</span>
         </div>
       )}
 
