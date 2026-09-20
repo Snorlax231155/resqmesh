@@ -23,6 +23,7 @@ function App() {
   const [roads, setRoads] = useState([]);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [activePolicy, setActivePolicy] = useState("ExpectedLivesSaved");
+  const [simState, setSimState] = useState({ running: false, speed: '1x' });
 
   const addEvent = useCallback((msg, type) => {
     setEvents(prev => [...prev.slice(-100), { id: Math.random(), message: msg, type, timestamp: Date.now() }]);
@@ -129,6 +130,115 @@ function App() {
     return () => { client.deactivate(); window.removeEventListener('keydown', handleKeyDown); };
   }, [addEvent, addDecision, scheduleSummaryRefresh]);
 
+  const toggleSimPlay = async () => {
+    try {
+      const endpoint = simState.running ? `${API_BASE}/sim/pause` : `${API_BASE}/sim/play`;
+      await fetch(endpoint, { method: 'POST' });
+      setSimState(prev => ({ ...prev, running: !prev.running }));
+      addEvent(`SIMULATION -> ${!simState.running ? 'RUNNING' : 'PAUSED'}`, "SYSTEM");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const runDispatchCycle = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/dispatch/run`, { method: 'POST' });
+      const assignments = await res.json();
+      addEvent(`MANUAL DISPATCH CYCLE -> ${assignments.length} assignments`, "SYSTEM");
+      fetchInitialData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadUrbanFlood = async () => {
+    try {
+      await fetch(`${API_BASE}/sim/load?scenario=urban_flood`, { method: 'POST' });
+      await fetchInitialData();
+      addEvent(`SCENARIO LOADED: URBAN FLOOD`, "SYSTEM");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const spawnRandomAgent = async () => {
+    if (nodes.length === 0) return;
+    const randNode = nodes[Math.floor(Math.random() * nodes.length)];
+    const code = `UNIT-${Math.floor(100 + Math.random() * 900)}`;
+    try {
+      await fetch(`${API_BASE}/agents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentCode: code, capacity: 1, currentNodeId: randNode.id })
+      });
+      addEvent(`SPAWNED RESCUE UNIT ${code}`, "SYSTEM");
+      fetchInitialData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const spawnRandomMission = async () => {
+    if (nodes.length < 2) return;
+    const srcNode = nodes[Math.floor(Math.random() * nodes.length)];
+    const dstNode = nodes[Math.floor(Math.random() * nodes.length)];
+    const priorities = ['CRITICAL', 'HIGH', 'NORMAL'];
+    const p = priorities[Math.floor(Math.random() * priorities.length)];
+    const code = `MED-${Math.floor(100 + Math.random() * 900)}`;
+    try {
+      await fetch(`${API_BASE}/missions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          missionCode: code,
+          priority: p,
+          pickupNodeId: srcNode.id,
+          destinationNodeId: dstNode.id,
+          deadlineMinutes: 30
+        })
+      });
+      addEvent(`SPAWNED MISSION ${code} (${p})`, "SYSTEM");
+      fetchInitialData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const spawnRandomDisruption = async () => {
+    if (roads.length === 0) return;
+    const randRoad = roads[Math.floor(Math.random() * roads.length)];
+    try {
+      await fetch(`${API_BASE}/disruptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          affectedRoadId: randRoad.id,
+          description: `Road Blockage on Segment ${randRoad.id.substring(0,6)}`,
+          delayFactor: 5.0
+        })
+      });
+      addEvent(`TRIGGERED ROAD BLOCKAGE`, "SYSTEM");
+      fetchInitialData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePolicyChange = async (pol) => {
+    try {
+      await fetch(`${API_BASE}/policies/active`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: pol })
+      });
+      setActivePolicy(pol);
+      addEvent(`ACTIVE POLICY -> ${pol}`, "SYSTEM");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const execCommand = async (cmd) => {
     try {
       const parts = cmd.trim().split(" ");
@@ -142,16 +252,11 @@ function App() {
          else if (pol === 'els') pol = 'ExpectedLivesSaved';
          else if (pol === 'fcfs') pol = 'FirstComeFirstServed';
          else if (pol === 'sw') pol = 'SeverityWeighted';
-         await fetch(`${API_BASE}/policies/active`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: pol }) 
-         });
-         setActivePolicy(pol);
-         addEvent(`POLICY -> ${pol}`, "SYSTEM");
+         await handlePolicyChange(pol);
       } else if (action === "speed" && parts[1]) {
          const s = parts[1].replace('x','');
          await fetch(`${API_BASE}/sim/speed?x=${s}`, { method: 'POST' });
+         setSimState(prev => ({ ...prev, speed: `${s}x` }));
          addEvent(`SIM SPEED -> ${s}x`, "SYSTEM");
       } else if (action === "load" && parts[1]) {
          await fetch(`${API_BASE}/sim/load?scenario=${parts[1]}`, { method: 'POST' });
@@ -159,9 +264,11 @@ function App() {
          addEvent(`LOAD SCENARIO -> ${parts[1]}`, "SYSTEM");
       } else if (action === "play") {
          await fetch(`${API_BASE}/sim/play`, { method: 'POST' });
+         setSimState(prev => ({ ...prev, running: true }));
          addEvent(`SIM -> PLAY`, "SYSTEM");
       } else if (action === "pause") {
          await fetch(`${API_BASE}/sim/pause`, { method: 'POST' });
+         setSimState(prev => ({ ...prev, running: false }));
          addEvent(`SIM -> PAUSE`, "SYSTEM");
       }
     } catch(e) {
@@ -171,20 +278,74 @@ function App() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', height: '100%', width: '100%' }}>
+    <div style={{ display: 'grid', gridTemplateRows: 'auto auto 1fr auto', height: '100%', width: '100%' }}>
+      {/* Top Header */}
       <header className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--rule)' }}>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <div className="title" style={{ fontSize: '1.2rem' }}>RESQMESH TACTICAL</div>
-          <div className="mono" style={{ fontSize: '0.9rem', color: 'var(--ink-muted)' }}>
-            UNITS: {summary.availableAgents}/{summary.totalAgents} | 
-            MSNS: {summary.pendingMissions}/{summary.totalMissions} | 
-            DISR: {summary.activeDisruptions}
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <div className="title" style={{ fontSize: '1.2rem', letterSpacing: '0.1em' }}>RESQMESH TACTICAL</div>
+          <div className="mono" style={{ fontSize: '0.85rem', color: 'var(--ink-muted)' }}>
+            UNITS: <strong style={{ color: 'var(--ink)' }}>{summary.availableAgents}/{summary.totalAgents}</strong> | 
+            MISSIONS: <strong style={{ color: 'var(--ink)' }}>{summary.pendingMissions}/{summary.totalMissions}</strong> | 
+            DISRUPTIONS: <strong style={{ color: 'var(--alert)' }}>{summary.activeDisruptions}</strong>
           </div>
         </div>
-        <div className="title" style={{ color: 'var(--signal)', fontSize: '0.9rem' }}>POLICY: {activePolicy}</div>
+
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="mono" style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>POLICY:</span>
+            <select
+              value={activePolicy}
+              onChange={e => handlePolicyChange(e.target.value)}
+              className="mono"
+              style={{ background: 'var(--bg)', color: 'var(--signal)', border: '1px solid var(--rule)', fontWeight: 'bold', padding: '2px 6px', fontSize: '11px' }}
+            >
+              <option value="ExpectedLivesSaved">ExpectedLivesSaved (Hungarian)</option>
+              <option value="FirstComeFirstServed">FirstComeFirstServed (FCFS)</option>
+              <option value="EarliestDeadlineFirst">EarliestDeadlineFirst (EDF)</option>
+              <option value="SeverityWeighted">SeverityWeighted (Priority)</option>
+            </select>
+          </div>
+
+          <button onClick={() => setCmdOpen(true)} className="mono" style={{ fontSize: '11px', padding: '2px 8px' }}>
+            CMD (⌘K)
+          </button>
+        </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', minHeight: 0 }}>
+      {/* Interactive Simulation Toolbar */}
+      <div style={{ background: 'var(--panel)', borderBottom: '1px solid var(--rule)', padding: '6px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button 
+            onClick={toggleSimPlay}
+            style={{ 
+              background: simState.running ? 'var(--alert)' : 'var(--hi-vis)', 
+              color: simState.running ? '#fff' : '#000',
+              fontWeight: 'bold',
+              minWidth: '80px'
+            }}
+          >
+            {simState.running ? '⏸ PAUSE' : '▶ PLAY'}
+          </button>
+
+          <button onClick={runDispatchCycle} style={{ background: 'var(--signal)', color: '#fff' }}>
+            ⚡ RUN DISPATCH CYCLE
+          </button>
+
+          <button onClick={loadUrbanFlood} style={{ background: 'var(--bg)', color: 'var(--ink)' }}>
+            🌊 LOAD URBAN FLOOD DEMO
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span className="mono" style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 'bold' }}>SIMULATE ACTIONS:</span>
+          <button onClick={spawnRandomAgent} style={{ fontSize: '11px' }}>+ UNIT</button>
+          <button onClick={spawnRandomMission} style={{ fontSize: '11px' }}>+ MISSION</button>
+          <button onClick={spawnRandomDisruption} style={{ fontSize: '11px', color: 'var(--alert)' }}>+ DISRUPTION</button>
+        </div>
+      </div>
+
+      {/* Map & Right Side Panel */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', minHeight: 0 }}>
         <div style={{ position: 'relative', background: 'var(--bg)' }}>
           <NetworkMap nodes={nodes} roads={roads} agents={agents} missions={missions} disruptions={disruptions} coverage={coverage} repositioningRoutes={repositioningRoutes} />
         </div>
@@ -194,6 +355,7 @@ function App() {
         </div>
       </div>
 
+      {/* Telemetry Event Tape */}
       <EventTape events={events} />
       {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} onExecute={execCommand} />}
     </div>
@@ -201,3 +363,4 @@ function App() {
 }
 
 export default App;
+

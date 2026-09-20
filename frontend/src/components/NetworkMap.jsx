@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { MapContainer, Polyline, Marker, useMap, CircleMarker } from 'react-leaflet';
+import { MapContainer, Polyline, Marker, useMap, CircleMarker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 
 function FitBounds({ nodes }) {
@@ -41,14 +41,34 @@ const createAgentIcon = (agent) => L.divIcon({
   iconAnchor: [0, 0]
 });
 
-const missionIcon = L.divIcon({
+const createMissionIcon = (priority) => L.divIcon({
   className: 'atc-marker',
-  html: `<div class="mission-shape"></div><div class="mission-label">MSN</div>`,
+  html: `<div class="mission-shape" style="background: ${priority === 'CRITICAL' ? '#E4002B' : priority === 'HIGH' ? '#FF8A00' : '#0B4FA8'}"></div><div class="mission-label">${priority ? priority.substring(0,3) : 'MSN'}</div>`,
   iconSize: [0, 0],
   iconAnchor: [0, 0]
 });
 
+const TILE_STYLES = {
+  voyager: {
+    name: 'CartoDB Voyager',
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
+  },
+  dark: {
+    name: 'CartoDB Dark',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
+  },
+  osm: {
+    name: 'OpenStreetMap',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors'
+  }
+};
+
 export default function NetworkMap({ nodes, roads, agents, missions, disruptions, coverage, repositioningRoutes }) {
+  const [tileStyle, setTileStyle] = useState('voyager');
+
   const nodeMap = useMemo(() => {
     const map = {};
     nodes.forEach(n => map[n.id] = n);
@@ -82,7 +102,34 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
   }
 
   return (
-    <>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Map Control Bar Overlay */}
+      <div style={{
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        zIndex: 1000,
+        background: 'var(--panel)',
+        border: '1px solid var(--rule)',
+        padding: '6px 10px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+      }}>
+        <span className="mono" style={{ fontSize: '11px', fontWeight: 'bold' }}>MAP TILES:</span>
+        <select 
+          value={tileStyle} 
+          onChange={e => setTileStyle(e.target.value)}
+          className="mono"
+          style={{ background: 'var(--bg)', color: 'var(--ink)', border: '1px solid var(--rule)', padding: '2px 6px', fontSize: '11px' }}
+        >
+          {Object.entries(TILE_STYLES).map(([key, style]) => (
+            <option key={key} value={key}>{style.name}</option>
+          ))}
+        </select>
+      </div>
+
       <style>{`
         .atc-marker { overflow: visible !important; }
         .agent-shape { width: 10px; height: 10px; position: absolute; left: -5px; top: -5px; }
@@ -94,15 +141,24 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
         .atc-data-block { position: absolute; left: 21px; top: -35px; background: var(--bg); border: 1px solid var(--rule); padding: 2px 4px; min-width: 60px; font-family: var(--font-mono); font-size: 10px; color: var(--ink); white-space: nowrap; }
         .atc-header { font-weight: bold; border-bottom: 1px solid var(--rule); margin-bottom: 1px; }
         .atc-body { line-height: 1.1; }
-        .mission-shape { width: 6px; height: 6px; background: var(--alert); position: absolute; left: -3px; top: -3px; border-radius: 50%; }
-        .mission-label { position: absolute; left: 5px; top: -5px; font-family: var(--font-mono); font-size: 8px; color: var(--alert); }
-        .leaflet-container { background: var(--bg) !important; }
+        .mission-shape { width: 8px; height: 8px; position: absolute; left: -4px; top: -4px; border-radius: 50%; border: 1px solid #000; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        .mission-label { position: absolute; left: 6px; top: -6px; font-family: var(--font-mono); font-size: 9px; font-weight: bold; color: var(--alert); text-shadow: 0 0 2px #fff; }
       `}</style>
-      <MapContainer center={[40.73, -73.99]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas={true} attributionControl={false}>
+
+      <MapContainer center={[40.73, -73.99]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={true} preferCanvas={true} attributionControl={true}>
         <FitBounds nodes={nodes} />
+        
+        {/* Real OpenStreetMap / CartoDB Map Tiles */}
+        <TileLayer
+          url={TILE_STYLES[tileStyle].url}
+          attribution={TILE_STYLES[tileStyle].attribution}
+          subdomains="abcd"
+          maxZoom={20}
+        />
+
         {coverageOverlay}
         
-        {/* Edges */}
+        {/* Road Network Graph Edges */}
         {roads.map(road => {
           const src = nodeMap[road.sourceNodeId];
           const dst = nodeMap[road.destinationNodeId];
@@ -112,15 +168,20 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
             <Polyline 
               key={road.id} 
               positions={[[src.latitude, src.longitude], [dst.latitude, dst.longitude]]} 
-              pathOptions={{ color: isDisrupted ? 'var(--alert)' : 'var(--rule)', weight: isDisrupted ? 2 : 1, opacity: 1 }} 
+              pathOptions={{ 
+                color: isDisrupted ? 'var(--alert)' : '#4A4A45', 
+                weight: isDisrupted ? 3 : 1.5, 
+                opacity: isDisrupted ? 0.9 : 0.4,
+                dashArray: isDisrupted ? '4, 4' : null 
+              }} 
             />
           );
         })}
 
         {/* Nodes Marks */}
-        {nodes.map(n => <CircleMarker key={`n-${n.id}`} center={[n.latitude, n.longitude]} radius={1} pathOptions={{ color: 'var(--rule)', fillOpacity: 1 }} />)}
+        {nodes.map(n => <CircleMarker key={`n-${n.id}`} center={[n.latitude, n.longitude]} radius={1} pathOptions={{ color: '#4A4A45', fillOpacity: 0.6 }} />)}
 
-        {/* Ghost Routes */}
+        {/* Ghost Routes / Dynamic Repositioning */}
         {repositioningRoutes.map(route => {
           const positions = (route.routeNodeIds || []).map(id => {
             const n = nodeMap[id];
@@ -128,7 +189,7 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
           }).filter(Boolean);
           
           return (
-            <Polyline key={`repo-${route._id || Math.random()}`} positions={positions} pathOptions={{ color: 'var(--signal)', weight: 2, dashArray: '5, 10', opacity: 0.5 }} />
+            <Polyline key={`repo-${route._id || Math.random()}`} positions={positions} pathOptions={{ color: 'var(--signal)', weight: 3, dashArray: '6, 8', opacity: 0.8 }} />
           );
         })}
 
@@ -136,16 +197,17 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
         {missions.filter(m => m.status !== 'COMPLETED').map(m => {
           const locNode = nodeMap[m.pickupNodeId];
           if (!locNode) return null;
-          return <Marker key={m.id} position={[locNode.latitude, locNode.longitude]} icon={missionIcon} />;
+          return <Marker key={m.id} position={[locNode.latitude, locNode.longitude]} icon={createMissionIcon(m.priority)} />;
         })}
 
-        {/* Agents */}
+        {/* Rescue Units / Agents */}
         {agents.map(a => {
           const locNode = nodeMap[a.currentNodeId];
           if (!locNode) return null;
           return <Marker key={a.id} position={[locNode.latitude, locNode.longitude]} icon={createAgentIcon(a)} zIndexOffset={1000} />;
         })}
       </MapContainer>
-    </>
+    </div>
   );
 }
+
