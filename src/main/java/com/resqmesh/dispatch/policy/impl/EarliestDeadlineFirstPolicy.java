@@ -27,7 +27,7 @@ public class EarliestDeadlineFirstPolicy extends AbstractGreedyPolicy {
 
     @Override
     protected List<Mission> sortMissions(List<Mission> pending, List<Agent> available, RoutingEngine engine) {
-        Instant now = Instant.now();
+        Instant now = com.resqmesh.sim.SimulationClock.now();
         return pending.stream()
                 .sorted(Comparator.comparingLong(m -> calculateSlack(m, available, engine, now)))
                 .collect(Collectors.toList());

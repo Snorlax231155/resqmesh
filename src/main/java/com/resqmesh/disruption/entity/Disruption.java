@@ -78,7 +78,7 @@ public class Disruption {
             id = UUID.randomUUID();
         }
         if (createdAt == null) {
-            createdAt = Instant.now();
+            createdAt = com.resqmesh.sim.SimulationClock.now();
         }
         if (active == null) {
             active = true;

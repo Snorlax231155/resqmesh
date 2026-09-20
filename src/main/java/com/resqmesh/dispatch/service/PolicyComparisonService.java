@@ -81,7 +81,7 @@ public class PolicyComparisonService {
         int worstSingleWait = etaList.isEmpty() ? 0 :
                 etaList.get(etaList.size() - 1);
 
-        Instant now = Instant.now();
+        Instant now = com.resqmesh.sim.SimulationClock.now();
 
         // Critical missed = CRITICAL missions that have no assignment or ETA > deadline slack
         long criticalMissed = missions.stream()

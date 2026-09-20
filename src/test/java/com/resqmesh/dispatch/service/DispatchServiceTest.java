@@ -119,8 +119,8 @@ class DispatchServiceTest {
         m.setMissionCode("M-" + UUID.randomUUID().toString().substring(0, 6));
         m.setStatus(status);
         m.setPriority(MissionPriority.HIGH);
-        m.setDeadline(Instant.now().plusSeconds(3600));
-        m.setCreatedAt(Instant.now());
+        m.setDeadline(com.resqmesh.sim.SimulationClock.now().plusSeconds(3600));
+        m.setCreatedAt(com.resqmesh.sim.SimulationClock.now());
         m.setRiskStatus(RiskStatus.ON_TRACK);
         return m;
     }

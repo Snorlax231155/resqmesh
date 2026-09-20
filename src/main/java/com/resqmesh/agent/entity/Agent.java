@@ -78,7 +78,7 @@ public class Agent {
         if (id == null) {
             id = UUID.randomUUID();
         }
-        Instant now = Instant.now();
+        Instant now = com.resqmesh.sim.SimulationClock.now();
         if (createdAt == null) {
             createdAt = now;
         }
@@ -87,6 +87,6 @@ public class Agent {
 
     @PreUpdate
     public void onUpdate() {
-        updatedAt = Instant.now();
+        updatedAt = com.resqmesh.sim.SimulationClock.now();
     }
 }

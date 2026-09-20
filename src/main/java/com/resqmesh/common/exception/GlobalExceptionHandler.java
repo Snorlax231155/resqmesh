@@ -16,7 +16,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NodeNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNodeNotFoundException(NodeNotFoundException ex, HttpServletRequest request) {
         ErrorResponse error = new ErrorResponse(
-                Instant.now(),
+                com.resqmesh.sim.SimulationClock.now(),
                 HttpStatus.NOT_FOUND.value(),
                 HttpStatus.NOT_FOUND.getReasonPhrase(),
                 ex.getMessage(),
@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RouteNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleRouteNotFoundException(RouteNotFoundException ex, HttpServletRequest request) {
         ErrorResponse error = new ErrorResponse(
-                Instant.now(),
+                com.resqmesh.sim.SimulationClock.now(),
                 HttpStatus.NOT_FOUND.value(),
                 HttpStatus.NOT_FOUND.getReasonPhrase(),
                 ex.getMessage(),
@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
         ErrorResponse error = new ErrorResponse(
-                Instant.now(),
+                com.resqmesh.sim.SimulationClock.now(),
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 "Validation failed",
@@ -55,7 +55,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
         ErrorResponse error = new ErrorResponse(
-                Instant.now(),
+                com.resqmesh.sim.SimulationClock.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
                 ex.getMessage(),

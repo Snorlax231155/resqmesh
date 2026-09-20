@@ -45,8 +45,8 @@ class DispatchEngineTest {
         mission.setDestinationNodeId("N3");
         mission.setStatus(MissionStatus.PENDING);
         mission.setPriority(MissionPriority.HIGH);
-        mission.setDeadline(Instant.now().plusSeconds(3600));
-        mission.setCreatedAt(Instant.now());
+        mission.setDeadline(com.resqmesh.sim.SimulationClock.now().plusSeconds(3600));
+        mission.setCreatedAt(com.resqmesh.sim.SimulationClock.now());
 
         Agent agent1 = new Agent();
         agent1.setId(UUID.randomUUID());
@@ -80,8 +80,8 @@ class DispatchEngineTest {
         mission.setDestinationNodeId("N3");
         mission.setStatus(MissionStatus.PENDING);
         mission.setPriority(MissionPriority.HIGH);
-        mission.setDeadline(Instant.now().plusSeconds(3600));
-        mission.setCreatedAt(Instant.now());
+        mission.setDeadline(com.resqmesh.sim.SimulationClock.now().plusSeconds(3600));
+        mission.setCreatedAt(com.resqmesh.sim.SimulationClock.now());
 
         Agent agent1 = new Agent();
         agent1.setId(UUID.randomUUID());

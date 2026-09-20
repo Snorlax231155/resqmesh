@@ -78,4 +78,28 @@ public class DisruptionService {
     public List<Disruption> getAllActiveDisruptions() {
         return disruptionRepository.findByActiveTrue();
     }
+
+    @Transactional
+    public void resolveDisruption(java.util.UUID disruptionId) {
+        Disruption disruption = disruptionRepository.findById(disruptionId)
+                .orElseThrow(() -> new IllegalArgumentException("Disruption not found: " + disruptionId));
+        disruption.setActive(false);
+        disruptionRepository.save(disruption);
+
+        RoadEdge roadEdge = roadEdgeRepository.findById(disruption.getAffectedRoadId())
+                .orElseThrow(() -> new IllegalArgumentException("Road edge not found: " + disruption.getAffectedRoadId()));
+        
+        roadEdge.setBlocked(false);
+        roadEdgeRepository.save(roadEdge);
+
+        routingEngine.setEdgeWeight(roadEdge.getId(), (double) roadEdge.getTravelTimeMinutes());
+        if (Boolean.TRUE.equals(roadEdge.getBidirectional())) {
+            routingEngine.setEdgeWeight(roadEdge.getId() + "_rev", (double) roadEdge.getTravelTimeMinutes());
+        }
+
+        dispatchService.runDispatchCycle();
+        notificationService.broadcastDisruptionUpdate(disruption);
+        coverageService.computeCoverage();
+        repositioningService.runRepositioning();
+    }
 }

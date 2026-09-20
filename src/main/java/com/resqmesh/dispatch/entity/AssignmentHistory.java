@@ -68,7 +68,7 @@ public class AssignmentHistory {
             id = UUID.randomUUID();
         }
         if (createdAt == null) {
-            createdAt = Instant.now();
+            createdAt = com.resqmesh.sim.SimulationClock.now();
         }
     }
 }

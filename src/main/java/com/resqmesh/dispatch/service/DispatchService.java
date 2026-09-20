@@ -98,7 +98,7 @@ public class DispatchService {
                     selectedAgent.getId(),
                     "Assigned via " + activePolicy.name() + ": " + candidate.getRationale(),
                     null,
-                    Instant.now()
+                    com.resqmesh.sim.SimulationClock.now()
             );
             assignmentHistoryRepository.save(history);
             
@@ -285,7 +285,7 @@ public class DispatchService {
                     null,
                     "Rung 5 Escalation: Unassigned due to disruption rendering destination unreachable",
                     null,
-                    Instant.now()
+                    com.resqmesh.sim.SimulationClock.now()
             );
             assignmentHistoryRepository.save(history);
 

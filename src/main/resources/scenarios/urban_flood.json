@@ -1,0 +1,612 @@
+{
+  "name": "Urban Flood",
+  "graphSource": "manhattan_graph.json",
+  "agents": [
+    {
+      "agentCode": "UNIT-01",
+      "name": "Rescue Unit 1",
+      "currentNodeId": "1d58342b-0a7b-49e4-8437-948bbf10a0e2",
+      "capacity": 1
+    },
+    {
+      "agentCode": "UNIT-02",
+      "name": "Rescue Unit 2",
+      "currentNodeId": "52b83160-3057-464a-8153-42415cf41db6",
+      "capacity": 1
+    },
+    {
+      "agentCode": "UNIT-03",
+      "name": "Rescue Unit 3",
+      "currentNodeId": "4ccb9551-93bd-46a2-a21e-e2d70963f716",
+      "capacity": 1
+    },
+    {
+      "agentCode": "UNIT-04",
+      "name": "Rescue Unit 4",
+      "currentNodeId": "c3aff7bc-fc7f-4c46-ba12-666243f7a7d2",
+      "capacity": 1
+    },
+    {
+      "agentCode": "UNIT-05",
+      "name": "Rescue Unit 5",
+      "currentNodeId": "dd685dc8-fe74-46fe-a47f-63a904eef1a9",
+      "capacity": 1
+    },
+    {
+      "agentCode": "UNIT-06",
+      "name": "Rescue Unit 6",
+      "currentNodeId": "0e5ae44b-a24c-445e-91c7-bb9f7b865c06",
+      "capacity": 1
+    }
+  ],
+  "events": [
+    {
+      "tOffsetSeconds": 5,
+      "type": "AGENT_ONLINE",
+      "payload": {
+        "agentCode": "UNIT-01"
+      }
+    },
+    {
+      "tOffsetSeconds": 5,
+      "type": "AGENT_ONLINE",
+      "payload": {
+        "agentCode": "UNIT-02"
+      }
+    },
+    {
+      "tOffsetSeconds": 5,
+      "type": "AGENT_ONLINE",
+      "payload": {
+        "agentCode": "UNIT-03"
+      }
+    },
+    {
+      "tOffsetSeconds": 5,
+      "type": "AGENT_ONLINE",
+      "payload": {
+        "agentCode": "UNIT-04"
+      }
+    },
+    {
+      "tOffsetSeconds": 5,
+      "type": "AGENT_ONLINE",
+      "payload": {
+        "agentCode": "UNIT-05"
+      }
+    },
+    {
+      "tOffsetSeconds": 5,
+      "type": "AGENT_ONLINE",
+      "payload": {
+        "agentCode": "UNIT-06"
+      }
+    },
+    {
+      "tOffsetSeconds": 25,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-001",
+        "pickupNodeId": "fbb9c30a-a845-4152-b175-fe4ecd40c429",
+        "destinationNodeId": "27a45fbe-b43b-49af-bb8c-75d1f2af3958",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 40,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-002",
+        "pickupNodeId": "5d4fc0e4-04e9-4069-90e5-c1d27300f4aa",
+        "destinationNodeId": "185e89a4-6ee9-4c6c-b54b-53c48c16dd2a",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "tOffsetSeconds": 55,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-003",
+        "pickupNodeId": "f4e49acc-da30-4b9d-8039-6fd6cfe2b6e5",
+        "destinationNodeId": "0cc17547-16f4-446f-9ad3-02a7cd81278f",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 70,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-004",
+        "pickupNodeId": "a8084241-aac1-4d7c-a89f-d5649ac87e26",
+        "destinationNodeId": "dd685dc8-fe74-46fe-a47f-63a904eef1a9",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 85,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-005",
+        "pickupNodeId": "c56a90df-1802-4b01-b209-f879fe1b13b9",
+        "destinationNodeId": "a3aca791-e7e8-4520-8ad7-bd0174c485d4",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 100,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-006",
+        "pickupNodeId": "94154648-c897-4345-9076-4313fa8b5cbb",
+        "destinationNodeId": "08ca2235-30dc-40d8-bfe1-59f925af68ae",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 115,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-007",
+        "pickupNodeId": "0fe530f3-8cde-40b3-a64c-c1320f1d10b0",
+        "destinationNodeId": "1ed76354-423b-44c2-adf2-f33d500d4010",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "tOffsetSeconds": 130,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-008",
+        "pickupNodeId": "17a5c9ea-4c29-45aa-bba6-0a9b56e7f55e",
+        "destinationNodeId": "d4c587ec-99e7-4688-9426-f56bfcb29cf4",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 145,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-009",
+        "pickupNodeId": "9fa5e032-9517-44e8-8d6c-37e670c6953b",
+        "destinationNodeId": "d6df8911-f208-4019-9604-c2c5459eb0a4",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "tOffsetSeconds": 160,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-010",
+        "pickupNodeId": "cfb3a315-e151-49c9-9ded-1c6dc9089000",
+        "destinationNodeId": "8dee5fcb-d5d6-4e0a-86a1-9980c47b716b",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "tOffsetSeconds": 175,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-011",
+        "pickupNodeId": "f5ea92af-7560-4638-a279-c1970f89c5a4",
+        "destinationNodeId": "5d07fd3b-9fd1-4288-9903-80d9b24ada23",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 190,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-012",
+        "pickupNodeId": "f31a5544-3a46-467a-bbca-bf7c9faf2c81",
+        "destinationNodeId": "28b2540b-df97-4abd-b6a5-0882f7cb7108",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 205,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-013",
+        "pickupNodeId": "32120253-d3c9-40d7-8974-dbf6707e5bff",
+        "destinationNodeId": "ed94b5fc-4917-4a18-a2be-41426def502f",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 220,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-014",
+        "pickupNodeId": "9550a345-4390-4409-a0ea-dc44acdf6a2f",
+        "destinationNodeId": "375eee36-a498-45ba-baf3-de9dbf5f84cf",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 235,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-015",
+        "pickupNodeId": "4c2702fb-4790-4e95-bf56-c4adb294e657",
+        "destinationNodeId": "04859516-c9e9-41b9-b265-16e340308f33",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 250,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-016",
+        "pickupNodeId": "04eb6e4a-455f-4e10-af51-c75e8e7db917",
+        "destinationNodeId": "f5ea92af-7560-4638-a279-c1970f89c5a4",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "tOffsetSeconds": 265,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-017",
+        "pickupNodeId": "ba19031c-4d53-4f31-baae-07f80f8651d6",
+        "destinationNodeId": "9592516a-340e-4f60-b1ce-2cedfad80690",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "tOffsetSeconds": 280,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-018",
+        "pickupNodeId": "6b67684b-74cc-4f1b-80ff-80d949a337e7",
+        "destinationNodeId": "8b0235d4-f879-432d-bd62-3ec68511ffa7",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "tOffsetSeconds": 295,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-019",
+        "pickupNodeId": "09b8e995-ffa2-42d1-ba44-07f1dc433e46",
+        "destinationNodeId": "e8233e0b-65b1-4f3c-b8b3-ab9d1cce3bf8",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 310,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-020",
+        "pickupNodeId": "6ff7ed9f-e91b-4bab-8679-a19b7271a20d",
+        "destinationNodeId": "8540bcb1-8572-4d0a-9d3c-6c5b34ae1f6f",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "tOffsetSeconds": 325,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-021",
+        "pickupNodeId": "e8b3d71f-7c5b-4dbc-a841-9ee61a0fbebd",
+        "destinationNodeId": "7cab922b-4823-4ed1-9844-240275c18047",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 340,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-022",
+        "pickupNodeId": "bf4f0cdd-a71d-4d54-bcce-0f81089f218c",
+        "destinationNodeId": "8bb547e7-f285-4355-b2ba-08cc70fc44f8",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "tOffsetSeconds": 355,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-023",
+        "pickupNodeId": "a7873295-d6cf-4f99-a4ba-406e3736cffc",
+        "destinationNodeId": "45af1367-fb96-4946-a7a1-ac535212999b",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 370,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-024",
+        "pickupNodeId": "c77e464b-af4c-4ce0-a42d-076fba1e54aa",
+        "destinationNodeId": "cea8d214-5948-44ca-a454-874e4154727b",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "tOffsetSeconds": 385,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-025",
+        "pickupNodeId": "a3ded8c6-e326-433f-8c57-608c5e0593d2",
+        "destinationNodeId": "e23a9b85-ed32-4a0f-81d2-e974e7636364",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 400,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-026",
+        "pickupNodeId": "7c587c38-6927-4e83-8c60-7487f83034eb",
+        "destinationNodeId": "e2768857-b0f0-43da-aac4-9905d35213b7",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "tOffsetSeconds": 415,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-027",
+        "pickupNodeId": "b7bd1576-03d9-46b2-8a41-d78418a0bc6f",
+        "destinationNodeId": "8ac97b58-f4b9-42ac-8bf5-c048d4ac4c0d",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 430,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-028",
+        "pickupNodeId": "670cb03c-0075-428d-b101-b54e4d7d86e8",
+        "destinationNodeId": "b9bfa137-61a1-43cf-b53a-6db97d83e2f7",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 445,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-029",
+        "pickupNodeId": "a8084241-aac1-4d7c-a89f-d5649ac87e26",
+        "destinationNodeId": "edf69d67-ccd9-4eaf-b916-a0b18bb59ff1",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 460,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-030",
+        "pickupNodeId": "6a12c3d6-d0d4-4e72-859b-a889530d3979",
+        "destinationNodeId": "f9200d2c-92f3-4f9f-bdbc-d60ce963fe81",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "tOffsetSeconds": 475,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-031",
+        "pickupNodeId": "ac4fd725-9f6e-44fd-8804-6f061705d3dd",
+        "destinationNodeId": "7f2ddc83-097f-4371-b263-a8ce3fc48f78",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 490,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-032",
+        "pickupNodeId": "5045df21-325a-4c37-b39e-a8bfa11f883d",
+        "destinationNodeId": "4827ba4a-b3f8-4983-a62a-d461e28285df",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "tOffsetSeconds": 505,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-033",
+        "pickupNodeId": "98bbf09f-c6fa-4cb0-8475-90dc77eb458f",
+        "destinationNodeId": "29d6fd6b-386e-4214-8204-9a51914f41a2",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 520,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-034",
+        "pickupNodeId": "b8396ecf-2ada-4250-aed4-7fbc84ee5e25",
+        "destinationNodeId": "bafeec57-3368-4adc-8e2f-cc96d763b038",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 535,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-035",
+        "pickupNodeId": "92fa385f-b186-47e4-a1fa-41f4c041c031",
+        "destinationNodeId": "9df9e615-3005-4e7b-94e3-51a942e26923",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 550,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-036",
+        "pickupNodeId": "56db9a4f-375e-41f3-bb56-45efccf62049",
+        "destinationNodeId": "699eb410-b7f9-440c-9d16-6bdc3269a766",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 565,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-037",
+        "pickupNodeId": "f82f1771-0cb2-4e13-8cce-a21d9c5c6af1",
+        "destinationNodeId": "a153f5c0-d031-4600-b0ab-3140ef3faa5b",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 580,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-038",
+        "pickupNodeId": "7f502295-5290-4d7b-bb5f-2402d54ca279",
+        "destinationNodeId": "ef01d399-e74c-45cf-967b-8019eb93ad40",
+        "priority": "LOW"
+      }
+    },
+    {
+      "tOffsetSeconds": 595,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-039",
+        "pickupNodeId": "c9c98c02-08fe-4b51-a6d0-a02db481705e",
+        "destinationNodeId": "0213e12e-94ec-4d3b-808c-adf455a0b141",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 610,
+      "type": "MISSION_CREATED",
+      "payload": {
+        "missionCode": "MED-040",
+        "pickupNodeId": "3a50930e-e169-4fbc-9250-e3ad2b9d5a7a",
+        "destinationNodeId": "ba33456c-b1e5-499e-be82-999e0e0b5794",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "tOffsetSeconds": 60,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "624695d1-31be-47f6-a7b9-11a0038f5573",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 90,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "c21b70e6-90f5-423f-8ee9-0b16d16d0c23",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 120,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "d3cd4e2f-386f-4b5f-8702-87f4a5f7958f",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 150,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "6ffd7ba0-1a94-48a3-968b-a7c07eab6d56",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 180,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "dca16782-14e0-417b-bd1d-b4ffd6b23c9d",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 210,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "347aecba-b48c-4fce-889c-7768596b8e1d",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 240,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "9d03f231-0671-4f37-b264-c9aeda3fdae6",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 270,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "28c980bf-4ba4-406c-850b-c6889f4a2af6",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 300,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "c7d366ef-1449-41f0-a36d-9d7506ac09f8",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 330,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "ae9c6f2c-ec84-4384-9853-ff9ffb0e0813",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 360,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "6417c86d-c331-47c3-b87e-7d1a3f088b7e",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 390,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "a8d1ef09-7d45-45a1-85eb-dafbece7dd6c",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 420,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "051b7bbd-7481-417e-839d-0b3049b1801b",
+        "description": "Flooded street"
+      }
+    },
+    {
+      "tOffsetSeconds": 450,
+      "type": "EDGE_CLOSED",
+      "payload": {
+        "type": "ROAD_CLOSURE",
+        "affectedRoadId": "cf654400-4cb3-4985-85c2-88cac344d5c9",
+        "description": "Flooded street"
+      }
+    }
+  ]
+}
