@@ -16,8 +16,8 @@ function FitBounds({ nodes }) {
 const getAgentShape = (status) => {
   switch (status) {
     case 'AVAILABLE': return '<div class="agent-shape shape-circle" style="background: var(--hi-vis);"></div>';
-    case 'ASSIGNED': return '<div class="agent-shape shape-square" style="background: var(--signal);"></div>';
-    case 'EN_ROUTE': return '<div class="agent-shape shape-triangle" style="border-bottom-color: var(--signal);"></div>';
+    case 'ASSIGNED': return '<div class="agent-shape shape-square" style="background: #0B4FA8;"></div>';
+    case 'EN_ROUTE': return '<div class="agent-shape shape-triangle" style="border-bottom-color: #0B4FA8;"></div>';
     case 'REPOSITIONING': return '<div class="agent-shape shape-diamond" style="background: var(--caution);"></div>';
     default: return '<div class="agent-shape shape-circle" style="background: var(--ink-muted);"></div>';
   }
@@ -32,8 +32,7 @@ const createAgentIcon = (agent) => L.divIcon({
       <div class="atc-data-block">
         <div class="atc-header">${agent.agentCode}</div>
         <div class="atc-body">STS: ${agent.status.substring(0,4)}</div>
-        <div class="atc-body">LOD: ${agent.status === 'EN_ROUTE' ? '1' : '0'}/${agent.capacity}</div>
-        <div class="atc-body">ETA: ${agent.status === 'EN_ROUTE' ? '3m' : '--'}</div>
+        <div class="atc-body">CAP: ${agent.capacity}</div>
       </div>
     </div>
   `,
@@ -41,33 +40,36 @@ const createAgentIcon = (agent) => L.divIcon({
   iconAnchor: [0, 0]
 });
 
-const createMissionIcon = (priority) => L.divIcon({
+const createMissionIcon = (priority, status) => L.divIcon({
   className: 'atc-marker',
-  html: `<div class="mission-shape" style="background: ${priority === 'CRITICAL' ? '#E4002B' : priority === 'HIGH' ? '#FF8A00' : '#0B4FA8'}"></div><div class="mission-label">${priority ? priority.substring(0,3) : 'MSN'}</div>`,
+  html: `
+    <div class="mission-shape" style="background: ${priority === 'CRITICAL' ? '#E4002B' : priority === 'HIGH' ? '#FF8A00' : '#0B4FA8'}; border: 2px solid ${status === 'ASSIGNED' ? '#D4E82B' : '#FFF'};"></div>
+    <div class="mission-label">${priority ? priority.substring(0,4) : 'MSN'}</div>
+  `,
   iconSize: [0, 0],
   iconAnchor: [0, 0]
 });
 
 const TILE_STYLES = {
-  voyager: {
-    name: 'CartoDB Voyager',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
-  },
-  dark: {
-    name: 'CartoDB Dark',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
-  },
   osm: {
-    name: 'OpenStreetMap',
+    name: 'OpenStreetMap (Clean)',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; OpenStreetMap contributors'
+  },
+  esri: {
+    name: 'Esri World Street Map',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri'
+  },
+  carto_light: {
+    name: 'CartoDB Light',
+    url: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
   }
 };
 
 export default function NetworkMap({ nodes, roads, agents, missions, disruptions, coverage, repositioningRoutes }) {
-  const [tileStyle, setTileStyle] = useState('voyager');
+  const [tileStyle, setTileStyle] = useState('osm');
 
   const nodeMap = useMemo(() => {
     const map = {};
@@ -77,25 +79,33 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
 
   const disruptedEdgeIds = useMemo(() => new Set(disruptions.filter(d => d.active).map(d => d.affectedRoadId)), [disruptions]);
 
-  const coverageOverlay = useMemo(() => {
-    if (!coverage) return null;
-    const makeCircles = (nodeIds, colorCode) => {
-      return (nodeIds || []).map(id => {
-        const node = nodeMap[id];
-        if (!node) return null;
-        return <CircleMarker key={`cov-${id}`} center={[node.latitude, node.longitude]} radius={20} pathOptions={{ color: 'transparent', fillColor: colorCode, fillOpacity: 0.2 }} />;
-      });
-    };
-    return (
-      <>
-        {makeCircles(coverage.band0to4, 'var(--cov-1)')}
-        {makeCircles(coverage.band4to8, 'var(--cov-2)')}
-        {makeCircles(coverage.band8to15, 'var(--cov-3)')}
-        {makeCircles(coverage.band15Plus, 'var(--cov-4)')}
-        {makeCircles(coverage.unreachable, 'var(--cov-5)')}
-      </>
-    );
-  }, [coverage, nodeMap]);
+  // Compute active routes between assigned agents and their missions
+  const activeAssignmentRoutes = useMemo(() => {
+    const routes = [];
+    agents.forEach(agent => {
+      if (agent.assignedMissionId || agent.status === 'ASSIGNED' || agent.status === 'EN_ROUTE') {
+        const mission = missions.find(m => m.id === agent.assignedMissionId || m.assignedAgentId === agent.id);
+        if (mission) {
+          const agentNode = nodeMap[agent.currentNodeId];
+          const pickupNode = nodeMap[mission.pickupNodeId];
+          const destNode = nodeMap[mission.destinationNodeId];
+          if (agentNode && pickupNode) {
+            routes.push({
+              id: `${agent.id}-${mission.id}`,
+              agentCode: agent.agentCode,
+              missionCode: mission.missionCode,
+              coords: [
+                [agentNode.latitude, agentNode.longitude],
+                [pickupNode.latitude, pickupNode.longitude],
+                ...(destNode ? [[destNode.latitude, destNode.longitude]] : [])
+              ]
+            });
+          }
+        }
+      }
+    });
+    return routes;
+  }, [agents, missions, nodeMap]);
 
   if (nodes.length === 0) {
     return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="title">Loading Graph...</div>;
@@ -109,20 +119,20 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
         top: 10,
         left: 10,
         zIndex: 1000,
-        background: 'var(--panel)',
+        background: 'rgba(255,255,255,0.95)',
         border: '1px solid var(--rule)',
         padding: '6px 10px',
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
       }}>
-        <span className="mono" style={{ fontSize: '11px', fontWeight: 'bold' }}>MAP TILES:</span>
+        <span className="mono" style={{ fontSize: '11px', fontWeight: 'bold', color: '#000' }}>MAP STYLE:</span>
         <select 
           value={tileStyle} 
           onChange={e => setTileStyle(e.target.value)}
           className="mono"
-          style={{ background: 'var(--bg)', color: 'var(--ink)', border: '1px solid var(--rule)', padding: '2px 6px', fontSize: '11px' }}
+          style={{ background: '#fff', color: '#000', border: '1px solid var(--rule)', padding: '2px 6px', fontSize: '11px', fontWeight: 'bold' }}
         >
           {Object.entries(TILE_STYLES).map(([key, style]) => (
             <option key={key} value={key}>{style.name}</option>
@@ -130,34 +140,62 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
         </select>
       </div>
 
+      {/* Map Legend Overlay */}
+      <div style={{
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        zIndex: 1000,
+        background: 'rgba(20, 20, 15, 0.9)',
+        color: '#FFF',
+        border: '1px solid var(--rule)',
+        padding: '8px 12px',
+        fontSize: '11px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        borderRadius: '2px'
+      }} className="mono">
+        <div style={{ fontWeight: 'bold', borderBottom: '1px solid #444', paddingBottom: '3px', marginBottom: '6px', color: '#D4E82B' }}>
+          MAP LEGEND & STATUS
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 12px', alignItems: 'center' }}>
+          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: '#D4E82B' }}></span>
+          <span>Available Rescue Unit</span>
+          <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#0B4FA8' }}></span>
+          <span>Assigned Unit (En Route)</span>
+          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: '#E4002B' }}></span>
+          <span>SOS Emergency Request</span>
+          <span style={{ display: 'inline-block', width: '16px', height: '3px', background: '#E4002B', borderTop: '1px dashed #FFF' }}></span>
+          <span>Flooded / Blocked Road</span>
+          <span style={{ display: 'inline-block', width: '16px', height: '3px', background: '#0B4FA8' }}></span>
+          <span>Active Dispatch Route</span>
+        </div>
+      </div>
+
       <style>{`
         .atc-marker { overflow: visible !important; }
-        .agent-shape { width: 10px; height: 10px; position: absolute; left: -5px; top: -5px; }
+        .agent-shape { width: 12px; height: 12px; position: absolute; left: -6px; top: -6px; box-shadow: 0 0 6px rgba(0,0,0,0.5); }
         .shape-circle { border-radius: 50%; }
-        .shape-square { }
+        .shape-square { border: 1px solid #fff; }
         .shape-diamond { transform: rotate(45deg); }
-        .shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid; left: -6px; top: -5px; }
-        .atc-leader-line { position: absolute; left: 0; top: 0; width: 30px; height: 1px; background: var(--ink); transform: rotate(-45deg); transform-origin: 0 0; }
-        .atc-data-block { position: absolute; left: 21px; top: -35px; background: var(--bg); border: 1px solid var(--rule); padding: 2px 4px; min-width: 60px; font-family: var(--font-mono); font-size: 10px; color: var(--ink); white-space: nowrap; }
-        .atc-header { font-weight: bold; border-bottom: 1px solid var(--rule); margin-bottom: 1px; }
+        .shape-triangle { width: 0; height: 0; background: transparent !important; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 12px solid; left: -7px; top: -6px; }
+        .atc-leader-line { position: absolute; left: 0; top: 0; width: 24px; height: 1px; background: #000; transform: rotate(-45deg); transform-origin: 0 0; }
+        .atc-data-block { position: absolute; left: 18px; top: -30px; background: rgba(255,255,255,0.95); border: 1px solid #14140F; padding: 2px 4px; min-width: 55px; font-family: var(--font-mono); font-size: 10px; color: #14140F; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .atc-header { font-weight: bold; border-bottom: 1px solid #ccc; margin-bottom: 1px; }
         .atc-body { line-height: 1.1; }
-        .mission-shape { width: 8px; height: 8px; position: absolute; left: -4px; top: -4px; border-radius: 50%; border: 1px solid #000; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
-        .mission-label { position: absolute; left: 6px; top: -6px; font-family: var(--font-mono); font-size: 9px; font-weight: bold; color: var(--alert); text-shadow: 0 0 2px #fff; }
+        .mission-shape { width: 10px; height: 10px; position: absolute; left: -5px; top: -5px; border-radius: 50%; box-shadow: 0 0 6px rgba(228,0,43,0.8); }
+        .mission-label { position: absolute; left: 7px; top: -7px; font-family: var(--font-mono); font-size: 9px; font-weight: bold; color: #E4002B; text-shadow: 0 0 3px #FFF, 0 0 3px #FFF; }
       `}</style>
 
       <MapContainer center={[40.73, -73.99]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={true} preferCanvas={true} attributionControl={true}>
         <FitBounds nodes={nodes} />
         
-        {/* Real OpenStreetMap / CartoDB Map Tiles */}
+        {/* OpenStreetMap / Esri Clean Map Tiles without API keys */}
         <TileLayer
           url={TILE_STYLES[tileStyle].url}
           attribution={TILE_STYLES[tileStyle].attribution}
-          subdomains="abcd"
-          maxZoom={20}
+          maxZoom={19}
         />
 
-        {coverageOverlay}
-        
         {/* Road Network Graph Edges */}
         {roads.map(road => {
           const src = nodeMap[road.sourceNodeId];
@@ -169,19 +207,33 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
               key={road.id} 
               positions={[[src.latitude, src.longitude], [dst.latitude, dst.longitude]]} 
               pathOptions={{ 
-                color: isDisrupted ? 'var(--alert)' : '#4A4A45', 
-                weight: isDisrupted ? 3 : 1.5, 
-                opacity: isDisrupted ? 0.9 : 0.4,
-                dashArray: isDisrupted ? '4, 4' : null 
+                color: isDisrupted ? '#E4002B' : '#4A4A45', 
+                weight: isDisrupted ? 4 : 1.5, 
+                opacity: isDisrupted ? 0.95 : 0.45,
+                dashArray: isDisrupted ? '6, 6' : null 
               }} 
             />
           );
         })}
 
-        {/* Nodes Marks */}
-        {nodes.map(n => <CircleMarker key={`n-${n.id}`} center={[n.latitude, n.longitude]} radius={1} pathOptions={{ color: '#4A4A45', fillOpacity: 0.6 }} />)}
+        {/* Active Dispatch Route Polylines */}
+        {activeAssignmentRoutes.map(r => (
+          <Polyline
+            key={r.id}
+            positions={r.coords}
+            pathOptions={{
+              color: '#0B4FA8',
+              weight: 4,
+              opacity: 0.9,
+              dashArray: '8, 8'
+            }}
+          />
+        ))}
 
-        {/* Ghost Routes / Dynamic Repositioning */}
+        {/* Nodes Marks */}
+        {nodes.map(n => <CircleMarker key={`n-${n.id}`} center={[n.latitude, n.longitude]} radius={1.2} pathOptions={{ color: '#2A2A25', fillOpacity: 0.7 }} />)}
+
+        {/* Repositioning Routes */}
         {repositioningRoutes.map(route => {
           const positions = (route.routeNodeIds || []).map(id => {
             const n = nodeMap[id];
@@ -189,7 +241,7 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
           }).filter(Boolean);
           
           return (
-            <Polyline key={`repo-${route._id || Math.random()}`} positions={positions} pathOptions={{ color: 'var(--signal)', weight: 3, dashArray: '6, 8', opacity: 0.8 }} />
+            <Polyline key={`repo-${route._id || Math.random()}`} positions={positions} pathOptions={{ color: '#FF8A00', weight: 3, dashArray: '6, 8', opacity: 0.85 }} />
           );
         })}
 
@@ -197,7 +249,7 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
         {missions.filter(m => m.status !== 'COMPLETED').map(m => {
           const locNode = nodeMap[m.pickupNodeId];
           if (!locNode) return null;
-          return <Marker key={m.id} position={[locNode.latitude, locNode.longitude]} icon={createMissionIcon(m.priority)} />;
+          return <Marker key={m.id} position={[locNode.latitude, locNode.longitude]} icon={createMissionIcon(m.priority, m.status)} />;
         })}
 
         {/* Rescue Units / Agents */}
@@ -210,4 +262,5 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
     </div>
   );
 }
+
 
