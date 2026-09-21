@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: resqmesh_db
       POSTGRES_USER: resqmesh_user
       POSTGRES_PASSWORD: resqmesh_password
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
