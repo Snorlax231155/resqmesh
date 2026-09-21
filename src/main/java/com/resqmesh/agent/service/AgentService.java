@@ -10,6 +10,10 @@ import com.resqmesh.network.repository.RoadNodeRepository;
 import com.resqmesh.common.service.NotificationService;
 import com.resqmesh.network.service.CoverageService;
 import com.resqmesh.dispatch.service.RepositioningService;
+import com.resqmesh.mission.repository.MissionRepository;
+import com.resqmesh.mission.entity.Mission;
+import com.resqmesh.mission.enums.MissionStatus;
+import com.resqmesh.dispatch.dto.DecisionEvent;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,13 +27,15 @@ public class AgentService {
     private final NotificationService notificationService;
     private final CoverageService coverageService;
     private final RepositioningService repositioningService;
+    private final MissionRepository missionRepository;
 
-    public AgentService(AgentRepository agentRepository, RoadNodeRepository roadNodeRepository, NotificationService notificationService, CoverageService coverageService, RepositioningService repositioningService) {
+    public AgentService(AgentRepository agentRepository, RoadNodeRepository roadNodeRepository, NotificationService notificationService, CoverageService coverageService, RepositioningService repositioningService, MissionRepository missionRepository) {
         this.agentRepository = agentRepository;
         this.roadNodeRepository = roadNodeRepository;
         this.notificationService = notificationService;
         this.coverageService = coverageService;
         this.repositioningService = repositioningService;
+        this.missionRepository = missionRepository;
     }
 
     public Agent registerAgent(AgentCreateRequest request) {
@@ -71,6 +77,33 @@ public class AgentService {
         coverageService.computeCoverage();
         repositioningService.runRepositioning();
         
+        return agent;
+    }
+
+    public Agent releaseAgent(UUID id) {
+        Agent agent = getAgent(id);
+        agent.setStatus(AgentStatus.AVAILABLE);
+        agent = agentRepository.save(agent);
+        notificationService.broadcastAgentUpdate(agent);
+
+        List<Mission> assignedMissions = missionRepository.findByAssignedAgentId(id);
+        for (Mission m : assignedMissions) {
+            if (m.getStatus() != MissionStatus.COMPLETED) {
+                m.setAssignedAgentId(null);
+                m.setStatus(MissionStatus.PENDING);
+                missionRepository.save(m);
+                notificationService.broadcastMissionUpdate(m);
+            }
+        }
+
+        notificationService.broadcastDecision(new DecisionEvent(
+            agent.getAgentCode(),
+            "[UNIT_RELEASED] Rescue Unit " + agent.getAgentCode() + " forcibly released to AVAILABLE status."
+        ));
+
+        coverageService.computeCoverage();
+        repositioningService.runRepositioning();
+
         return agent;
     }
 }

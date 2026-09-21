@@ -298,4 +298,61 @@ public class DispatchService {
             notificationService.broadcastAgentUpdate(agent);
         }
     }
+
+    @Transactional
+    public AssignmentResponse manualAssign(java.util.UUID missionId, java.util.UUID agentId) {
+        Mission mission = missionRepository.findById(missionId)
+                .orElseThrow(() -> new IllegalArgumentException("Mission not found: " + missionId));
+        Agent agent = agentRepository.findById(agentId)
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + agentId));
+
+        if (agent.getStatus() != AgentStatus.AVAILABLE) {
+            throw new IllegalStateException("Agent " + agent.getAgentCode() + " is not AVAILABLE.");
+        }
+
+        com.resqmesh.network.dto.RouteResponse r1 = routingEngine.bidirectionalAStar(agent.getCurrentNodeId(), mission.getPickupNodeId());
+        com.resqmesh.network.dto.RouteResponse r2 = routingEngine.bidirectionalAStar(mission.getPickupNodeId(), mission.getDestinationNodeId());
+        int totalEta = (r1.isReachable() ? r1.getTotalTravelTimeMinutes() : 10) + (r2.isReachable() ? r2.getTotalTravelTimeMinutes() : 10);
+
+        mission.setAssignedAgentId(agent.getId());
+        mission.setStatus(MissionStatus.ASSIGNED);
+        mission.setEstimatedArrivalMinutes(totalEta);
+        missionRepository.save(mission);
+
+        agent.setStatus(AgentStatus.ASSIGNED);
+        agentRepository.save(agent);
+
+        List<String> route = new ArrayList<>();
+        if (r1.getRoadPath() != null) route.addAll(r1.getRoadPath());
+        if (r2.getRoadPath() != null) route.addAll(r2.getRoadPath());
+        if (!route.isEmpty()) {
+            routingEngine.registerMissionRoute(mission.getId(), route);
+        }
+
+        AssignmentHistory history = new AssignmentHistory(
+                null,
+                mission.getId(),
+                null,
+                agent.getId(),
+                "Manually assigned by dispatcher operator",
+                null,
+                com.resqmesh.sim.SimulationClock.now()
+        );
+        assignmentHistoryRepository.save(history);
+
+        notificationService.broadcastMissionUpdate(mission);
+        notificationService.broadcastAgentUpdate(agent);
+        notificationService.broadcastDecision(new com.resqmesh.dispatch.dto.DecisionEvent(
+                mission.getMissionCode(),
+                "[MANUAL_DISPATCH] Dispatcher manually assigned Rescue Unit " + agent.getAgentCode() + " to Mission " + mission.getMissionCode() + " (ETA: " + totalEta + "m)."
+        ));
+
+        return new AssignmentResponse(
+                mission.getId(),
+                agent.getId(),
+                agent.getCurrentNodeId(),
+                mission.getDestinationNodeId(),
+                totalEta
+        );
+    }
 }

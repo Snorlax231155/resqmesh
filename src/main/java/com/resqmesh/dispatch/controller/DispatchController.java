@@ -23,4 +23,9 @@ public class DispatchController {
     public ResponseEntity<List<AssignmentResponse>> runDispatchCycle() {
         return ResponseEntity.ok(dispatchService.runDispatchCycle());
     }
+
+    @PostMapping("/assign")
+    public ResponseEntity<AssignmentResponse> manualAssign(@org.springframework.web.bind.annotation.RequestParam java.util.UUID missionId, @org.springframework.web.bind.annotation.RequestParam java.util.UUID agentId) {
+        return ResponseEntity.ok(dispatchService.manualAssign(missionId, agentId));
+    }
 }

@@ -47,4 +47,9 @@ public class AgentController {
     public ResponseEntity<Agent> updateStatus(@PathVariable UUID id, @Valid @RequestBody AgentStatusUpdateRequest request) {
         return ResponseEntity.ok(agentService.updateAgentStatus(id, request));
     }
+
+    @PostMapping("/{id}/release")
+    public ResponseEntity<Agent> releaseAgent(@PathVariable UUID id) {
+        return ResponseEntity.ok(agentService.releaseAgent(id));
+    }
 }

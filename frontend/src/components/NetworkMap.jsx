@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { MapContainer, Polyline, Marker, useMap, CircleMarker, TileLayer } from 'react-leaflet';
+import { MapContainer, Polyline, Marker, useMap, CircleMarker, TileLayer, Popup } from 'react-leaflet';
 import L from 'leaflet';
 
 function FitBounds({ nodes }) {
@@ -70,8 +70,21 @@ const TILE_STYLES = {
   }
 };
 
-export default function NetworkMap({ nodes, roads, agents, missions, disruptions, coverage, repositioningRoutes }) {
+export default function NetworkMap({ 
+  nodes, 
+  roads, 
+  agents, 
+  missions, 
+  disruptions, 
+  coverage, 
+  repositioningRoutes,
+  onManualAssign,
+  onCompleteMission,
+  onReleaseAgent 
+}) {
   const [tileStyle, setTileStyle] = useState('osm');
+  const [selectedMissionForAgent, setSelectedMissionForAgent] = useState({});
+  const [selectedAgentForMission, setSelectedAgentForMission] = useState({});
 
   const nodeMap = useMemo(() => {
     const map = {};
@@ -84,6 +97,52 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
   }, [disruptions]);
 
   const disruptedEdgeIds = useMemo(() => new Set(disruptedEdges.map(d => d.affectedRoadId)), [disruptedEdges]);
+
+  const unitMissionConnections = useMemo(() => {
+    const connections = [];
+    const addedKeys = new Set();
+
+    missions.forEach(m => {
+      if (m.status === 'COMPLETED' || !m.assignedAgentId) return;
+      const agent = agents.find(a => String(a.id) === String(m.assignedAgentId));
+      if (agent) {
+        const agentNode = nodeMap[agent.currentNodeId];
+        const missionNode = nodeMap[m.pickupNodeId];
+        if (agentNode && missionNode) {
+          const key = `${m.id}-${agent.id}`;
+          addedKeys.add(key);
+          connections.push({
+            id: key,
+            from: [agentNode.latitude, agentNode.longitude],
+            to: [missionNode.latitude, missionNode.longitude]
+          });
+        }
+      }
+    });
+
+    agents.forEach(a => {
+      if (a.assignedMissionId) {
+        const mission = missions.find(m => String(m.id) === String(a.assignedMissionId));
+        if (mission && mission.status !== 'COMPLETED') {
+          const key = `${mission.id}-${a.id}`;
+          if (!addedKeys.has(key)) {
+            const agentNode = nodeMap[a.currentNodeId];
+            const missionNode = nodeMap[mission.pickupNodeId];
+            if (agentNode && missionNode) {
+              addedKeys.add(key);
+              connections.push({
+                id: key,
+                from: [agentNode.latitude, agentNode.longitude],
+                to: [missionNode.latitude, missionNode.longitude]
+              });
+            }
+          }
+        }
+      }
+    });
+
+    return connections;
+  }, [missions, agents, nodeMap]);
 
   if (nodes.length === 0) {
     return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="title">Loading Road Network Graph...</div>;
@@ -147,6 +206,8 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
           <span style={{ color: '#FF8A00', fontWeight: 'bold' }}>Flooded / Blocked Road</span>
           <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#0B4FA8' }}></span>
           <span>Dynamic A* Dispatch Path</span>
+          <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#00E5FF', borderTop: '2px dashed #00E5FF' }}></span>
+          <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>Unit-to-Mission Link</span>
         </div>
       </div>
 
@@ -199,8 +260,29 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
           );
         })}
 
-        {/* Graph Nodes Marks */}
-        {nodes.map(n => <CircleMarker key={`n-${n.id}`} center={[n.latitude, n.longitude]} radius={1.2} pathOptions={{ color: '#222220', fillOpacity: 0.6 }} />)}
+        {/* Graph Nodes Marks (Solid Black, Less Transparent) */}
+        {nodes.map(n => (
+          <CircleMarker 
+            key={`n-${n.id}`} 
+            center={[n.latitude, n.longitude]} 
+            radius={2.0} 
+            pathOptions={{ color: '#000000', fillColor: '#000000', fillOpacity: 0.95, weight: 1 }} 
+          />
+        ))}
+
+        {/* Tactical Unit-to-Mission Connection Lines */}
+        {unitMissionConnections.map(conn => (
+          <Polyline
+            key={`unit-mission-conn-${conn.id}`}
+            positions={[conn.from, conn.to]}
+            pathOptions={{
+              color: '#00E5FF',
+              weight: 3.5,
+              opacity: 0.95,
+              dashArray: '6, 8'
+            }}
+          />
+        ))}
 
         {/* Real-time A* Repositioning & Dynamic Dispatch Paths */}
         {repositioningRoutes.map(route => {
@@ -218,14 +300,121 @@ export default function NetworkMap({ nodes, roads, agents, missions, disruptions
         {missions.filter(m => m.status !== 'COMPLETED').map(m => {
           const locNode = nodeMap[m.pickupNodeId];
           if (!locNode) return null;
-          return <Marker key={m.id} position={[locNode.latitude, locNode.longitude]} icon={createMissionIcon(m.priority, m.status)} />;
+          const assignedAgent = agents.find(a => String(a.id) === String(m.assignedAgentId));
+          const availableAgents = agents.filter(a => a.status === 'AVAILABLE');
+
+          return (
+            <Marker key={m.id} position={[locNode.latitude, locNode.longitude]} icon={createMissionIcon(m.priority, m.status)}>
+              <Popup minWidth={240}>
+                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#14140F' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#E4002B', borderBottom: '1.5px solid #E4002B', paddingBottom: '4px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>🚨 {m.missionCode}</span>
+                    <span style={{ fontSize: '9px', background: m.priority === 'CRITICAL' ? '#E4002B' : '#FF8A00', color: '#FFF', padding: '1px 5px', borderRadius: '2px' }}>{m.priority}</span>
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#555', marginBottom: '4px' }}>Status: <strong>{m.status}</strong></div>
+                  <div style={{ fontSize: '10px', color: '#555', marginBottom: '4px' }}>Assigned Squad: <strong>{assignedAgent ? assignedAgent.agentCode : 'UNASSIGNED'}</strong></div>
+                  <div style={{ fontSize: '10px', color: '#555', marginBottom: '8px' }}>Pickup Node: <code>{m.pickupNodeId.substring(0, 12)}</code></div>
+
+                  {!assignedAgent ? (
+                    availableAgents.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', background: '#F4F4EE', padding: '6px', borderRadius: '4px', border: '1px dashed #E4002B' }}>
+                        <label style={{ fontSize: '10px', fontWeight: 'bold', color: '#000' }}>SELECT RESCUE UNIT TO ASSIGN:</label>
+                        <select
+                          value={selectedAgentForMission[m.id] || availableAgents[0].id}
+                          onChange={e => setSelectedAgentForMission(prev => ({ ...prev, [m.id]: e.target.value }))}
+                          style={{ fontSize: '10px', padding: '4px', fontWeight: 'bold', background: '#FFF', color: '#000', border: '1px solid #999', borderRadius: '3px' }}
+                        >
+                          {availableAgents.map(ag => (
+                            <option key={ag.id} value={ag.id}>🚑 {ag.agentCode} ({ag.name})</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            const agId = selectedAgentForMission[m.id] || availableAgents[0].id;
+                            if (agId && onManualAssign) onManualAssign(m.id, agId);
+                          }}
+                          style={{ background: '#0B4FA8', color: '#FFF', border: 'none', padding: '5px 8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '3px', marginTop: '2px', boxShadow: '0 2px 4px rgba(11,79,168,0.3)' }}
+                        >
+                          👉 ASSIGN SELECTED SQUAD
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '10px', color: '#888', fontStyle: 'italic', marginTop: '4px' }}>No available rescue units right now.</div>
+                    )
+                  ) : (
+                    onCompleteMission && (
+                      <button
+                        onClick={() => onCompleteMission(m.id)}
+                        style={{ background: '#0A5C0D', color: '#FFF', border: 'none', padding: '5px 10px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '3px', width: '100%', marginTop: '6px' }}
+                      >
+                        ✅ END TASK & FREE UNIT
+                      </button>
+                    )
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
         })}
 
         {/* Rescue Units / Agents */}
         {agents.map(a => {
           const locNode = nodeMap[a.currentNodeId];
           if (!locNode) return null;
-          return <Marker key={a.id} position={[locNode.latitude, locNode.longitude]} icon={createAgentIcon(a)} zIndexOffset={1000} />;
+          const isAvailable = a.status === 'AVAILABLE';
+          const pendingMissions = missions.filter(m => m.status === 'PENDING' || !m.assignedAgentId);
+
+          return (
+            <Marker key={a.id} position={[locNode.latitude, locNode.longitude]} icon={createAgentIcon(a)} zIndexOffset={1000}>
+              <Popup minWidth={240}>
+                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#14140F' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#0B4FA8', borderBottom: '1.5px solid #0B4FA8', paddingBottom: '4px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>🚑 {a.agentCode}</span>
+                    <span style={{ fontSize: '9px', background: isAvailable ? '#0A5C0D' : '#0B4FA8', color: '#FFF', padding: '1px 5px', borderRadius: '2px' }}>{a.status}</span>
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#555', marginBottom: '4px' }}>Name: <strong>{a.name}</strong></div>
+                  <div style={{ fontSize: '10px', color: '#555', marginBottom: '8px' }}>Location: <code>{a.currentNodeId.substring(0, 12)}</code></div>
+
+                  {isAvailable ? (
+                    pendingMissions.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', background: '#F4F4EE', padding: '6px', borderRadius: '4px', border: '1px dashed #0B4FA8' }}>
+                        <label style={{ fontSize: '10px', fontWeight: 'bold', color: '#000' }}>SELECT UNASSIGNED SOS MISSION:</label>
+                        <select
+                          value={selectedMissionForAgent[a.id] || pendingMissions[0].id}
+                          onChange={e => setSelectedMissionForAgent(prev => ({ ...prev, [a.id]: e.target.value }))}
+                          style={{ fontSize: '10px', padding: '4px', fontWeight: 'bold', background: '#FFF', color: '#000', border: '1px solid #999', borderRadius: '3px' }}
+                        >
+                          {pendingMissions.map(m => (
+                            <option key={m.id} value={m.id}>🚨 {m.missionCode} ({m.priority})</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            const mId = selectedMissionForAgent[a.id] || pendingMissions[0].id;
+                            if (mId && onManualAssign) onManualAssign(mId, a.id);
+                          }}
+                          style={{ background: '#0B4FA8', color: '#FFF', border: 'none', padding: '5px 8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '3px', marginTop: '2px', boxShadow: '0 2px 4px rgba(11,79,168,0.3)' }}
+                        >
+                          👉 ASSIGN UNIT TO MISSION
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '10px', color: '#888', fontStyle: 'italic', marginTop: '4px' }}>No unassigned missions pending right now.</div>
+                    )
+                  ) : (
+                    onReleaseAgent && (
+                      <button
+                        onClick={() => onReleaseAgent(a.id)}
+                        style={{ background: '#FF8A00', color: '#000', border: 'none', padding: '5px 10px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '3px', width: '100%', marginTop: '6px' }}
+                      >
+                        🔓 FORCE RELEASE UNIT
+                      </button>
+                    )
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
         })}
       </MapContainer>
     </div>

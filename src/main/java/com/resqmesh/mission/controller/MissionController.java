@@ -47,4 +47,9 @@ public class MissionController {
     public ResponseEntity<Mission> updateStatus(@PathVariable UUID id, @Valid @RequestBody MissionStatusUpdateRequest request) {
         return ResponseEntity.ok(missionService.updateMissionStatus(id, request));
     }
+
+    @PostMapping("/{id}/complete")
+    public ResponseEntity<Mission> completeMission(@PathVariable UUID id) {
+        return ResponseEntity.ok(missionService.completeMission(id));
+    }
 }

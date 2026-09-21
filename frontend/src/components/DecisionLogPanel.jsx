@@ -14,12 +14,17 @@ export default function DecisionLogPanel({ decisions }) {
     if (filter === 'ALL') return true;
     const msg = (d.message || '').toUpperCase();
     if (filter === 'ASSIGN') return msg.includes('ASSIGN') || msg.includes('DISPATCH');
+    if (filter === 'COMPLAIN') return msg.includes('CIVILIAN') || msg.includes('EMERGENCY_SOS') || msg.includes('COMPLAINT');
+    if (filter === 'RESOLVE') return msg.includes('COMPLETED') || msg.includes('RELEASED');
     if (filter === 'RISK') return msg.includes('RISK') || msg.includes('ESCALAT') || msg.includes('WARN');
     return true;
   });
 
   const getBadgeStyle = (msg) => {
     const m = (msg || '').toUpperCase();
+    if (m.includes('CIVILIAN') || m.includes('COMPLAINT')) return { bg: '#9C27B0', text: '#FFFFFF', label: 'COMPLAINT' };
+    if (m.includes('COMPLETED') || m.includes('RESOLVED')) return { bg: '#0A5C0D', text: '#FFFFFF', label: 'RESOLVED' };
+    if (m.includes('RELEASED') || m.includes('FREE')) return { bg: '#FF8A00', text: '#000000', label: 'RELEASED' };
     if (m.includes('ASSIGN') || m.includes('DISPATCH')) return { bg: '#0B4FA8', text: '#FFFFFF', label: 'ASSIGNED' };
     if (m.includes('RISK') || m.includes('ESCALAT')) return { bg: '#E4002B', text: '#FFFFFF', label: 'AT RISK' };
     if (m.includes('DISRUPT') || m.includes('BLOCK')) return { bg: '#FF8A00', text: '#000000', label: 'BLOCKAGE' };
@@ -34,8 +39,8 @@ export default function DecisionLogPanel({ decisions }) {
         <div className="title" style={{ fontSize: '0.95rem', letterSpacing: '0.05em' }}>
           DECISION LOG <span className="mono" style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>({decisions.length})</span>
         </div>
-        <div style={{ display: 'flex', gap: '4px' }}>
-          {['ALL', 'ASSIGN', 'RISK'].map(f => (
+        <div style={{ display: 'flex', gap: '3px' }}>
+          {['ALL', 'COMPLAIN', 'ASSIGN', 'RESOLVE', 'RISK'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -44,7 +49,9 @@ export default function DecisionLogPanel({ decisions }) {
                 padding: '1px 5px',
                 background: filter === f ? 'var(--ink)' : 'transparent',
                 color: filter === f ? 'var(--bg)' : 'var(--ink)',
-                border: '1px solid var(--rule)'
+                border: '1px solid var(--rule)',
+                cursor: 'pointer',
+                fontWeight: 'bold'
               }}
             >
               {f}

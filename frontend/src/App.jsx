@@ -6,6 +6,8 @@ import EventTape from './components/EventTape';
 import DecisionLogPanel from './components/DecisionLogPanel';
 import PolicyComparisonView from './components/PolicyComparisonView';
 import CommandPalette from './components/CommandPalette';
+import CivilianComplaintModal from './components/CivilianComplaintModal';
+import FleetDrawer from './components/FleetDrawer';
 
 const API_BASE = import.meta.env.PROD ? '/api/v1' : 'http://localhost:8080/api/v1';
 const WS_URL = import.meta.env.PROD ? '/ws' : 'http://localhost:8080/ws';
@@ -13,6 +15,8 @@ const WS_URL = import.meta.env.PROD ? '/ws' : 'http://localhost:8080/ws';
 function App() {
   const [demoBanner, setDemoBanner] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
+  const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
+  const [isFleetDrawerOpen, setIsFleetDrawerOpen] = useState(false);
 
   const [summary, setSummary] = useState({ totalAgents: 0, availableAgents: 0, totalMissions: 0, pendingMissions: 0, activeDisruptions: 0 });
   const [agents, setAgents] = useState([]);
@@ -61,11 +65,12 @@ function App() {
       setDisruptions(await disRes.json());
       setNodes(await nodesRes.json());
       setRoads(await roadsRes.json());
-      
-      const p = await polRes.json();
-      if (p.active) setActivePolicy(p.active);
-    } catch (err) {
-      console.error("Failed to fetch initial data", err);
+      try {
+        const polData = await polRes.json();
+        if (polData && polData.active) setActivePolicy(polData.active);
+      } catch (e) {}
+    } catch (e) {
+      console.error("Failed to load initial data", e);
     }
   };
 
@@ -137,22 +142,124 @@ function App() {
     try {
       const endpoint = simState.running ? `${API_BASE}/sim/pause` : `${API_BASE}/sim/play`;
       await fetch(endpoint, { method: 'POST' });
-      setSimState(prev => ({ ...prev, running: !prev.running }));
-      addEvent(`SIMULATION -> ${!simState.running ? 'RUNNING' : 'PAUSED'}`, "SYSTEM");
+      const nextRunning = !simState.running;
+      setSimState(prev => ({ ...prev, running: nextRunning }));
+      addEvent(`AUTOPILOT MODE -> ${nextRunning ? 'ENABLED (AUTO DISPATCH)' : 'DISABLED (MANUAL MODE)'}`, "SYSTEM");
+      addDecision(`[AUTOPILOT_STATUS] Autopilot switched to ${nextRunning ? 'AUTOMATIC' : 'MANUAL'} mode.`);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const runDispatchCycle = async () => {
+  const runDispatchCycle = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/dispatch/run`, { method: 'POST' });
       const assignments = await res.json();
-      addEvent(`MANUAL DISPATCH CYCLE -> ${assignments.length} assignments`, "SYSTEM");
+      if (assignments && assignments.length > 0) {
+        addEvent(`DISPATCH CYCLE -> ${assignments.length} assignments made`, "SYSTEM");
+      }
       fetchInitialData();
     } catch (e) {
       console.error(e);
     }
+  }, []);
+
+  // Automatic Dispatch Interval when Autopilot is ON
+  useEffect(() => {
+    let interval = null;
+    if (simState.running) {
+      // Run once immediately when Autopilot turns ON
+      runDispatchCycle();
+      interval = setInterval(() => {
+        runDispatchCycle();
+      }, 3000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [simState.running, runDispatchCycle]);
+
+  const handleManualAssign = async (missionId, agentId) => {
+    try {
+      const res = await fetch(`${API_BASE}/dispatch/assign?missionId=${missionId}&agentId=${agentId}`, { method: 'POST' });
+      if (res.ok) {
+        addEvent(`👉 MANUALLY ASSIGNED UNIT TO MISSION`, "SYSTEM");
+        await fetchInitialData();
+      } else {
+        const errText = await res.text();
+        addEvent(`MANUAL ASSIGN ERR: ${errText}`, "ERROR");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCompleteMission = async (missionId) => {
+    try {
+      const res = await fetch(`${API_BASE}/missions/${missionId}/complete`, { method: 'POST' });
+      if (res.ok) {
+        const m = await res.json();
+        addEvent(`✅ MISSION COMPLETED & UNIT FREED: ${m.missionCode}`, "SYSTEM");
+        addDecision(`[MISSION_COMPLETED] Mission ${m.missionCode} marked COMPLETED. Assigned rescue unit freed & set to AVAILABLE status.`);
+        await fetchInitialData();
+        if (simState.running) await runDispatchCycle();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleReleaseAgent = async (agentId) => {
+    try {
+      const res = await fetch(`${API_BASE}/agents/${agentId}/release`, { method: 'POST' });
+      if (res.ok) {
+        const a = await res.json();
+        addEvent(`🔓 RESCUE UNIT FORCIBLY RELEASED: ${a.agentCode}`, "AGENT");
+        addDecision(`[UNIT_RELEASED] Rescue unit ${a.agentCode} forcibly released to AVAILABLE status.`);
+        await fetchInitialData();
+        if (simState.running) await runDispatchCycle();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSubmitComplaint = async (complaintData) => {
+    const code = `CIV-${Math.floor(100 + Math.random() * 900)}`;
+    const deadlineIso = new Date(Date.now() + 40 * 60 * 1000).toISOString();
+
+    try {
+      const res = await fetch(`${API_BASE}/missions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          missionCode: code,
+          priority: complaintData.priority,
+          pickupNodeId: complaintData.pickupNodeId,
+          destinationNodeId: complaintData.destinationNodeId,
+          deadline: deadlineIso
+        })
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        addEvent(`CIVILIAN SOS ERR: ${errText}`, "ERROR");
+        return;
+      }
+      const mission = await res.json();
+      addEvent(`📢 CIVILIAN COMPLAINT LOGGED: ${code} by ${complaintData.reporterName}`, "MISSION");
+      addDecision(`[CIVILIAN_COMPLAINT] Emergency complaint from ${complaintData.reporterName} (${complaintData.phone}): "${complaintData.description}". Priority ${complaintData.priority} mission ${code} created at Graph Node ${complaintData.pickupNodeId.substring(0, 8)}.`);
+      await fetchInitialData();
+      if (simState.running) await runDispatchCycle();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCompleteRandomMission = async () => {
+    const activeMissions = missions.filter(m => m.status !== 'COMPLETED');
+    if (activeMissions.length === 0) return;
+    const randomMission = activeMissions[Math.floor(Math.random() * activeMissions.length)];
+    await handleCompleteMission(randomMission.id);
   };
 
   const runAutomatedHackathonDemo = async () => {
@@ -178,16 +285,15 @@ function App() {
 
       // Step 4: Execute Optimal Dispatch
       setTimeout(async () => {
-        setDemoBanner({ step: '4/5', title: 'OPTIMAL HUNGARIAN TRIAGE MATCHING', desc: 'Executing ExpectedLivesSaved Hungarian Algorithm to maximize global survival rate...' });
+        setDemoBanner({ step: '4/5', title: 'HUNGARIAN OPTIMAL DISPATCH CYCLE', desc: 'Solving Bipartite Graph Matching to minimize arrival times and maximize lives saved...' });
         await runDispatchCycle();
       }, 9000);
 
-      // Step 5: Benchmark & Finish
-      setTimeout(async () => {
-        setDemoBanner({ step: '5/5', title: 'DISPATCH COMPLETE & BENCHMARK', desc: 'Hungarian Policy achieved optimal matching (+2 extra lives saved vs naive FCFS policy!). Units en route.' });
-        setTimeout(() => setDemoBanner(null), 7000);
+      // Step 5: Demo Resolution
+      setTimeout(() => {
+        setDemoBanner({ step: '5/5', title: 'DISPATCH OPTIMIZATION COMPLETE', desc: 'Rescue units deployed along real-time re-routed flood paths. Zero critical missions missed!' });
+        setTimeout(() => setDemoBanner(null), 5000);
       }, 12000);
-
     } catch (e) {
       console.error(e);
     }
@@ -197,6 +303,7 @@ function App() {
     if (nodes.length === 0) return;
     const randNode = nodes[Math.floor(Math.random() * nodes.length)];
     const code = `UNIT-${Math.floor(100 + Math.random() * 900)}`;
+
     try {
       const res = await fetch(`${API_BASE}/agents`, {
         method: 'POST',
@@ -217,7 +324,7 @@ function App() {
       addEvent(`+ REGISTERED RESCUE UNIT ${agent.agentCode}`, "AGENT");
       addDecision(`[AGENT_REGISTERED] Rescue Unit ${agent.agentCode} deployed to Graph Node ${randNode.id.substring(0, 8)}.`);
       await fetchInitialData();
-      await runDispatchCycle();
+      if (simState.running) await runDispatchCycle();
     } catch (e) {
       console.error(e);
     }
@@ -256,7 +363,7 @@ function App() {
       addEvent(`+ EMERGENCY SOS CREATED: ${mission.missionCode} (${p})`, "MISSION");
       addDecision(`[EMERGENCY_SOS] Priority ${p} mission ${mission.missionCode} logged at Pickup Node ${srcNode.id.substring(0, 8)} -> Dest Node ${dstNode.id.substring(0, 8)}.`);
       await fetchInitialData();
-      await runDispatchCycle();
+      if (simState.running) await runDispatchCycle();
     } catch (e) {
       console.error(e);
     }
@@ -341,6 +448,8 @@ function App() {
     }
   };
 
+  const activeMissionsCount = missions.filter(m => m.status !== 'COMPLETED').length;
+
   return (
     <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       {/* Top Header & Integrated Toolbar */}
@@ -357,29 +466,64 @@ function App() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button 
+              onClick={() => setIsComplaintModalOpen(true)}
+              style={{
+                background: '#E4002B',
+                color: '#FFF',
+                fontSize: '11px',
+                padding: '5px 12px',
+                fontWeight: 'bold',
+                border: 'none',
+                boxShadow: '0 2px 8px rgba(228,0,43,0.5)',
+                cursor: 'pointer',
+                borderRadius: '3px'
+              }}
+            >
+              📢 LOG COMPLAINT / SOS
+            </button>
+
+            <button 
+              onClick={() => setIsFleetDrawerOpen(o => !o)}
+              style={{
+                background: '#0B4FA8',
+                color: '#FFF',
+                fontSize: '11px',
+                padding: '5px 12px',
+                fontWeight: 'bold',
+                border: 'none',
+                boxShadow: '0 2px 8px rgba(11,79,168,0.5)',
+                cursor: 'pointer',
+                borderRadius: '3px'
+              }}
+            >
+              ⚡ FLEET CONTROL ({activeMissionsCount})
+            </button>
+
             <button 
               onClick={runAutomatedHackathonDemo}
               style={{
                 background: 'linear-gradient(135deg, #0B4FA8 0%, #E4002B 100%)',
                 color: '#FFF',
-                fontSize: '12px',
-                padding: '6px 14px',
+                fontSize: '11px',
+                padding: '5px 12px',
                 fontWeight: 'bold',
                 border: 'none',
                 boxShadow: '0 2px 8px rgba(11, 79, 168, 0.4)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                borderRadius: '3px'
               }}
             >
-              🚀 1-CLICK HACKATHON DEMO (SHOWCASE)
+              🚀 1-CLICK HACKATHON DEMO
             </button>
 
             <button 
               onClick={() => setShowGuide(g => !g)} 
               className="mono" 
-              style={{ fontSize: '11px', padding: '4px 10px', background: showGuide ? 'var(--ink)' : 'var(--panel)', color: showGuide ? 'var(--bg)' : 'var(--ink)' }}
+              style={{ fontSize: '11px', padding: '4px 8px', background: showGuide ? 'var(--ink)' : 'var(--panel)', color: showGuide ? 'var(--bg)' : 'var(--ink)' }}
             >
-              {showGuide ? '✖ HIDE GUIDE' : '❓ WHAT IS RESQMESH?'}
+              {showGuide ? '✖ HIDE GUIDE' : '❓ GUIDE'}
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -405,14 +549,18 @@ function App() {
             <button 
               onClick={toggleSimPlay}
               style={{ 
-                background: simState.running ? 'var(--alert)' : 'var(--hi-vis)', 
+                background: simState.running ? '#0A5C0D' : 'var(--hi-vis)', 
                 color: simState.running ? '#fff' : '#000',
                 fontWeight: 'bold',
-                minWidth: '85px',
-                padding: '4px 10px'
+                minWidth: '180px',
+                padding: '4px 12px',
+                border: '1px solid #000',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                boxShadow: simState.running ? '0 0 10px rgba(10,92,13,0.6)' : 'none'
               }}
             >
-              {simState.running ? '⏸ PAUSE' : '▶ PLAY'}
+              {simState.running ? '⚡ AUTOPILOT: ON (AUTO DISPATCH)' : '▶ AUTOPILOT: OFF (MANUAL)'}
             </button>
 
             <button onClick={runDispatchCycle} style={{ background: '#0B4FA8', color: '#fff', padding: '4px 12px' }}>
@@ -421,10 +569,24 @@ function App() {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span className="mono" style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 'bold' }}>MANUAL DEMO ACTIONS:</span>
+            <span className="mono" style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 'bold' }}>TACTICAL ACTIONS:</span>
             <button onClick={spawnRandomAgent} style={{ fontSize: '11px', padding: '3px 8px' }}>+ UNIT</button>
             <button onClick={spawnRandomMission} style={{ fontSize: '11px', padding: '3px 8px', background: '#E4002B', color: '#FFF' }}>+ MISSION (SOS)</button>
             <button onClick={spawnRandomDisruption} style={{ fontSize: '11px', padding: '3px 8px', color: '#FF8A00' }}>+ FLOOD ROAD</button>
+            <button 
+              onClick={handleCompleteRandomMission} 
+              disabled={activeMissionsCount === 0}
+              style={{ 
+                fontSize: '11px', 
+                padding: '3px 8px', 
+                background: activeMissionsCount > 0 ? '#0A5C0D' : '#333', 
+                color: activeMissionsCount > 0 ? '#FFF' : '#666',
+                fontWeight: 'bold',
+                cursor: activeMissionsCount > 0 ? 'pointer' : 'not-allowed'
+              }}
+            >
+              ✅ COMPLETE TASK & FREE UNIT
+            </button>
           </div>
         </div>
       </header>
@@ -469,7 +631,7 @@ function App() {
             <div>
               <div style={{ color: '#D4E82B', fontWeight: 'bold', marginBottom: '4px' }}>🚀 HOW TO PRESENT TO JUDGES?</div>
               <div style={{ color: '#CCC' }}>
-                Click <strong>"🚀 1-CLICK HACKATHON DEMO"</strong>! It automatically triggers a flood, logs critical SOS calls, runs the Hungarian triage algorithm, and displays step-by-step decision traces.
+                Click <strong>"📢 LOG COMPLAINT"</strong> to lodge a custom emergency, or click <strong>"⚡ FLEET CONTROL"</strong> to end tasks and free units dynamically!
               </div>
             </div>
           </div>
@@ -510,7 +672,18 @@ function App() {
       {/* Main Map & Right Side Panel */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', minHeight: 0, height: '100%' }}>
         <div style={{ position: 'relative', background: 'var(--bg)', height: '100%' }}>
-          <NetworkMap nodes={nodes} roads={roads} agents={agents} missions={missions} disruptions={disruptions} coverage={coverage} repositioningRoutes={repositioningRoutes} />
+          <NetworkMap 
+            nodes={nodes} 
+            roads={roads} 
+            agents={agents} 
+            missions={missions} 
+            disruptions={disruptions} 
+            coverage={coverage} 
+            repositioningRoutes={repositioningRoutes}
+            onManualAssign={handleManualAssign}
+            onCompleteMission={handleCompleteMission}
+            onReleaseAgent={handleReleaseAgent}
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--rule)', height: '100%' }}>
           <DecisionLogPanel decisions={decisions} />
@@ -520,6 +693,26 @@ function App() {
 
       {/* Telemetry Event Tape */}
       <EventTape events={events} />
+
+      {/* Civilian Emergency Complaint Form Modal */}
+      <CivilianComplaintModal
+        isOpen={isComplaintModalOpen}
+        onClose={() => setIsComplaintModalOpen(false)}
+        onSubmitComplaint={handleSubmitComplaint}
+        nodes={nodes}
+      />
+
+      {/* Tactical Fleet & Task Control Drawer */}
+      <FleetDrawer
+        isOpen={isFleetDrawerOpen}
+        onClose={() => setIsFleetDrawerOpen(false)}
+        agents={agents}
+        missions={missions}
+        onCompleteMission={handleCompleteMission}
+        onReleaseAgent={handleReleaseAgent}
+        onManualAssign={handleManualAssign}
+      />
+
       {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} onExecute={execCommand} />}
     </div>
   );
