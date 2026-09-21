@@ -1,96 +1,134 @@
 # 🚑 ResQMesh
 
 <div align="center">
-  <img src="frontend/public/icons.svg" alt="ResQMesh Logo" width="100"/>
   <h3>Intelligent Emergency Response & Routing Platform</h3>
-  <p>A real-time, highly scalable routing and dispatch engine built for modern emergency services.</p>
-  
-  <img src="frontend/public/demo.jpg" alt="ResQMesh Dashboard" width="800" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin-top: 20px;"/>
+  <p>A real-time, highly scalable triage dispatch & routing engine built for disaster management and modern emergency medical services.</p>
+
+  <p>
+    <a href="http://ec2-13-203-196-186.ap-south-1.compute.amazonaws.com:8080/"><strong>🌐 Live Application Showcase Demo</strong></a>
+  </p>
 </div>
 
 ---
 
-## Overview
+## 🎯 Overview
 
-**ResQMesh** addresses the maximal coverage and dynamic assignment problem for emergency medical services in constrained urban environments. When road networks are disrupted by flood, fire, or debris, static routing heuristics fail and response times decay exponentially. 
+**ResQMesh** solves the maximal coverage, dynamic assignment, and real-time routing problem for emergency rescue squads operating in disaster-affected urban environments. When urban infrastructure is disrupted by flash floods, road washouts, or debris, static routing heuristics fail and life-saving response times decay exponentially. 
 
-This platform evaluates real-time OpenStreetMap topology (1,300+ nodes, 2,600+ edges for Lower Manhattan) against active responder units. The core dispatch engine continuously recalculates SSSP (Single-Source Shortest Path) across the live graph to optimise assignments and dynamically re-route responders around real-time edge closures.
+ResQMesh ingests real-world **OpenStreetMap (OSM)** topology (1,315 nodes, 2,682 edges across Lower Manhattan) and models active rescue squads and emergency SOS victims as a dynamic bipartite graph. 
 
-## Architecture & Metrics
+The core engine uses the **Hungarian Algorithm** ($O(V^3)$ bipartite matching) alongside a **5-Rung Escalation Ladder** to maximize lives saved, enforce strict medical deadlines, and dynamically re-route responders around blocked road segments in real-time.
 
-### Backend Engine
-- **Java 21 & Spring Boot 3.3.3:** Core API and WebSocket broker.
-- **In-Memory Traversal:** Graph traversal (Dijkstra/A*) operates strictly in-memory on sparse CSR arrays. 
-  - **Dijkstra:** ~9,160 QPS (p95: 400µs, p50: 82µs)
-  - **Bidirectional A*:** ~6,015 QPS (p95: 424µs, p50: 137µs)
-- **PostgreSQL & Flyway:** Persistence for audit logging, initial topology seeding, and mission history.
+---
 
-### Real-time Telemetry
-- **STOMP over WebSocket:** Sub-50ms propagation of edge closures and agent reroutes to all connected clients.
+## ✨ Key Capabilities & Features
 
-### Frontend Display
-- **React + Leaflet:** Vector-based rendering of the city topology.
-- **Theme:** High-contrast light/dark modes optimized for visual acuity, modeled on marine ECDIS and CAD terminal standards.
+### ⚡ 1. Autopilot vs. Manual Dispatch Modes
+- **`⚡ AUTOPILOT: ON`**: Runs automated dispatch cycles (~every 3s) using optimal bipartite graph matching to pair incoming SOS requests with available rescue squads.
+- **`▶ AUTOPILOT: OFF (MANUAL MODE)`**: Stops automatic background dispatching, enabling dispatchers to retain full manual control over unit assignments.
 
-### Data Pipeline
-- **Python (OSMnx):** Geographic ingestion pipeline that extracts drivable street networks and projects them into JSON graph definitions.
+### 📍 2. Interactive Map Marker Unit Assignment
+- **Rescue Squad Markers (🚑)**: Click any unit on the Leaflet map to inspect status, current graph node, and manually assign unassigned emergency missions from an inline popup picker.
+- **Emergency Victim Markers (🚨)**: Click any SOS marker to inspect priority, pickup location, assigned squad, or pair an available squad with 1-click (`👉 ASSIGN SELECTED SQUAD`).
+
+### 📢 3. Civilian Emergency Complaint & SOS Intake Form
+- **Civilian Intake Modal (`📢 LOG COMPLAINT / SOS`)**: Allows dispatch operators or civilians to lodge custom emergency complaints.
+- Includes reporter details, contact channels, priority selection (`CRITICAL`, `HIGH`, `NORMAL`, `LOW`), landmark location node presets (*Times Square*, *Wall St*, *FDR Drive*, *Brooklyn Bridge*), and situation descriptions.
+- Automatically generates live missions and broadcasts STOMP events into the decision log (`[CIVILIAN_COMPLAINT]`).
+
+### ⚡ 4. Tactical Fleet & Task Control Drawer
+- **Drawer Panel (`⚡ FLEET CONTROL`)**: A slide-out panel for fleet management.
+- Quick actions:
+  - **`✅ END TASK & FREE UNIT`**: Completes a mission and releases the assigned rescue squad back to `AVAILABLE` status at the target node.
+  - **`🔓 FORCE RELEASE UNIT`**: Forcibly frees an occupied rescue squad.
+  - **`📍 LOCATE`**: Focuses the map on specific graph nodes.
+
+### 🛣️ 5. Dynamic Pathfinding & 5-Rung Rerouting Ladder
+- **Bidirectional A* Algorithm**: In-memory graph traversal across sparse Compressed Sparse Row (CSR) arrays.
+- **5-Rung Escalation Ladder**:
+  1. *Rung 1*: Reroute same unit around blocked roads via alternate A* path.
+  2. *Rung 2*: Reassign to a closer available unit.
+  3. *Rung 3*: Reshuffle unit off a lower-priority mission.
+  4. *Rung 4*: Capacity split simulation.
+  5. *Rung 5*: Escalate to human operator (`AT_RISK`).
+
+---
+
+## 🏛️ Architecture & Tech Stack
+
+```
+   ┌─────────────────────────────────────────────────────────────┐
+   │                React 18 + Leaflet Web GIS                   │
+   │      (Autopilot / Manual Mode, Marker Popups, Drawer)       │
+   └──────────────────────────────┬──────────────────────────────┘
+                                  │ STOMP over WebSocket & HTTP REST API
+   ┌──────────────────────────────▼──────────────────────────────┐
+   │                 Spring Boot 3.3.3 API Server                │
+   │  - DispatchService (Hungarian Solver & 5-Rung Ladder)      │
+   │  - NotificationService (WebSocket STOMP Broker)             │
+   │  - RoutingEngine (In-Memory CSR Graph Traversal)            │
+   └──────────────────────────────┬──────────────────────────────┘
+                                  │ Fast In-Memory Graph Access
+   ┌──────────────────────────────▼──────────────────────────────┐
+   │        OpenStreetMap (OSM) Lower Manhattan Topology         │
+   │               (1,315 Nodes / 2,682 Edges)                   │
+   └──────────────────────────────┬──────────────────────────────┘
+```
+
+### Performance Metrics:
+- **Dijkstra Traversal:** ~9,160 QPS (p95: 400µs, p50: 82µs)
+- **Bidirectional A*:** ~6,015 QPS (p95: 424µs, p50: 137µs)
+- **WebSocket Broadcast Latency:** Sub-50ms propagation across all clients
+
+---
 
 ## 🛠️ Quick Start (Local Development)
 
 ### Prerequisites
-- Java 21
-- Node.js 18+
-- Maven
+- **Java 21**
+- **Node.js 18+**
+- **Maven**
 
-### 1. Start the Frontend (Development)
+### 1. Build and Run Frontend (Vite + React)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 2. Start the Backend
+### 2. Start Backend Engine
 ```bash
-# From the project root
+# From project root
 ./mvnw spring-boot:run
 ```
 
-The application will be accessible at `http://localhost:5173`.
+Open `http://localhost:5173` in your browser.
 
-## 📦 Production Deployment (AWS / Docker)
+---
 
-ResQMesh is designed to bundle into a single, highly portable `.jar` file for 1-click cloud deployments.
+## 📦 Single-JAR Deployment (AWS EC2 / Cloud)
 
-1. **Build the Production Frontend UI:**
-   ```bash
-   cd frontend
-   npm run build
-   ```
-2. **Move Frontend to Backend Static Hosting:**
-   ```bash
-   cd ..
-   mkdir -p src/main/resources/static
-   cp -r frontend/dist/* src/main/resources/static/
-   ```
-3. **Package the Unified Application:**
-   ```bash
-   ./mvnw clean package -DskipTests
-   ```
-4. **Run on Production Server (AWS EC2):**
-   ```bash
-   # Make sure PostgreSQL is configured or adjust application.yml for H2
-   java -jar target/resqmesh-0.0.1-SNAPSHOT.jar
-   ```
+ResQMesh compiles into a single, unified fat `.jar` containing static frontend assets:
 
-## 🗺️ Updating the City Map
+```bash
+# 1. Build Production Frontend Assets
+cd frontend
+npm run build
+cd ..
 
-To generate a new city graph from OpenStreetMap:
-1. Setup a python virtual environment and install `osmnx`.
-2. Edit the bounding box coordinates in `fetch_city.py`.
-3. Run the script: `python3 fetch_city.py`.
-4. This outputs `manhattan_graph.json` directly into `src/main/resources/`.
-5. Restart the Spring Boot server to seed the new graph into the database!
+# 2. Copy Static Assets to Backend
+rm -rf src/main/resources/static/*
+cp -r frontend/dist/* src/main/resources/static/
+
+# 3. Package Fat JAR
+./mvnw clean package -DskipTests
+
+# 4. Launch on Production Server
+java -jar target/resqmesh-0.0.1-SNAPSHOT.jar
+```
+
+---
 
 ## 📜 License
 
-MIT License - feel free to use this for your own hackathons and emergency services projects.
+MIT License — Built for disaster relief hackathons and emergency services optimization.
