@@ -83,6 +83,7 @@ export default function NetworkMap({
   onReleaseAgent 
 }) {
   const [tileStyle, setTileStyle] = useState('osm');
+  const [showLegend, setShowLegend] = useState(false);
   const [selectedMissionForAgent, setSelectedMissionForAgent] = useState({});
   const [selectedAgentForMission, setSelectedAgentForMission] = useState({});
 
@@ -178,37 +179,69 @@ export default function NetworkMap({
         </select>
       </div>
 
-      {/* High Visibility Map Legend */}
+      {/* High Visibility Map Legend Toggle & Panel */}
       <div style={{
         position: 'absolute',
         top: 12,
         right: 12,
         zIndex: 1000,
-        background: 'rgba(14, 14, 10, 0.95)',
-        color: '#FFF',
-        border: '2px solid #0B4FA8',
-        padding: '10px 14px',
-        fontSize: '11px',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-        borderRadius: '4px'
-      }} className="mono">
-        <div style={{ fontWeight: 'bold', borderBottom: '1px solid #444', paddingBottom: '4px', marginBottom: '8px', color: '#D4E82B', fontSize: '12px' }}>
-          TACTICAL MAP LEGEND
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', alignItems: 'center' }}>
-          <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: '#D4E82B', border: '1px solid #000', boxShadow: '0 0 6px #D4E82B' }}></span>
-          <span>Available Rescue Unit</span>
-          <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#0B4FA8', border: '1px solid #FFF' }}></span>
-          <span>Assigned Rescue Unit</span>
-          <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: '#E4002B', boxShadow: '0 0 6px #E4002B' }}></span>
-          <span>Emergency SOS Victim</span>
-          <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#E4002B', borderTop: '1px dashed #FFF' }}></span>
-          <span style={{ color: '#FF8A00', fontWeight: 'bold' }}>Flooded / Blocked Road</span>
-          <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#0B4FA8' }}></span>
-          <span>Dynamic A* Dispatch Path</span>
-          <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#00E5FF', borderTop: '2px dashed #00E5FF' }}></span>
-          <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>Unit-to-Mission Link</span>
-        </div>
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '8px'
+      }}>
+        <button 
+          onClick={() => setShowLegend(!showLegend)}
+          style={{
+            background: 'rgba(14, 14, 10, 0.95)',
+            color: '#FFF',
+            border: '2px solid #0B4FA8',
+            borderRadius: '4px',
+            padding: '4px 10px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title="Toggle Map Legend"
+        >
+          &#8942;
+        </button>
+        
+        {showLegend && (
+          <div style={{
+            background: 'rgba(14, 14, 10, 0.95)',
+            color: '#FFF',
+            border: '2px solid #0B4FA8',
+            padding: '10px 14px',
+            fontSize: '11px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            borderRadius: '4px'
+          }} className="mono">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #444', paddingBottom: '4px', marginBottom: '8px' }}>
+              <div style={{ fontWeight: 'bold', color: '#D4E82B', fontSize: '12px' }}>
+                TACTICAL MAP LEGEND
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', alignItems: 'center' }}>
+              <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: '#D4E82B', border: '1px solid #000', boxShadow: '0 0 6px #D4E82B' }}></span>
+              <span>Available Rescue Unit</span>
+              <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#0B4FA8', border: '1px solid #FFF' }}></span>
+              <span>Assigned Rescue Unit</span>
+              <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: '#E4002B', boxShadow: '0 0 6px #E4002B' }}></span>
+              <span>Emergency SOS Victim</span>
+              <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#E4002B', borderTop: '1px dashed #FFF' }}></span>
+              <span style={{ color: '#FF8A00', fontWeight: 'bold' }}>Flooded / Blocked Road</span>
+              <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#0B4FA8' }}></span>
+              <span>Dynamic A* Dispatch Path</span>
+              <span style={{ display: 'inline-block', width: '20px', height: '4px', background: '#00E5FF', borderTop: '2px dashed #00E5FF' }}></span>
+              <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>Unit-to-Mission Link</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`
