@@ -1,23 +1,20 @@
-# 🚑 ResQMesh
+# ResQMesh - Tactical Emergency Dispatch & Logistics Platform
 
-<div align="center">
-  <h3>Intelligent Emergency Response & Routing Platform</h3>
-  <p>A real-time, highly scalable triage dispatch & routing engine built for disaster management and modern emergency medical services.</p>
+**Live Demo:** [http://ec2-13-203-196-186.ap-south-1.compute.amazonaws.com:8080](http://ec2-13-203-196-186.ap-south-1.compute.amazonaws.com:8080)
 
-  <p>
-    <a href="http://ec2-13-203-196-186.ap-south-1.compute.amazonaws.com:8080/"><strong>🌐 Live Application Showcase Demo</strong></a>
-  </p>
-</div>
+ResQMesh is a high-performance tactical dispatch platform designed to coordinate emergency medical services (EMS) and rescue fleets during severe urban disasters. 
 
 ---
 
-## 🎯 Overview
+## 🚨 What Problem Does It Solve?
+During natural disasters—such as flash floods, earthquakes, or severe storms—road networks become unpredictable. Traditional GPS and standard 911 dispatch systems fail because they assume city streets are static. When 911 call volumes spike and roads are dynamically blocked, standard dispatch systems send ambulances into dead-ends, forcing them to backtrack and lose critical life-saving minutes. Furthermore, standard "First-Come, First-Served" dispatch logic collapses under mass-casualty events where optimizing resources is the only way to minimize fatalities.
 
-**ResQMesh** solves the maximal coverage, dynamic assignment, and real-time routing problem for emergency rescue squads operating in disaster-affected urban environments. When urban infrastructure is disrupted by flash floods, road washouts, or debris, static routing heuristics fail and life-saving response times decay exponentially. 
+**ResQMesh solves this logistical nightmare.** It ingests live road disruptions and instantly recalculates routes across the city grid. Instead of naive dispatching, ResQMesh uses algorithmic triage policies (like *Expected Lives Saved*) combined with A* routing to mathematically match the right rescue units to the right emergencies, completely avoiding blocked roads. 
 
-ResQMesh ingests real-world **OpenStreetMap (OSM)** topology (1,315 nodes, 2,682 edges across Lower Manhattan) and models active rescue squads and emergency SOS victims as a dynamic bipartite graph. 
-
-The core engine uses the **Hungarian Algorithm** ($O(V^3)$ bipartite matching) alongside a **5-Rung Escalation Ladder** to maximize lives saved, enforce strict medical deadlines, and dynamically re-route responders around blocked road segments in real-time.
+## 🎯 Who Is It For?
+*   **Emergency Dispatchers (911 / EMS / Fire):** It gives operators a high-density, real-time tactical dashboard to seamlessly transition between algorithmic "Autopilot" dispatching and manual overrides.
+*   **Disaster Response Agencies (e.g., FEMA, National Guard):** To coordinate fleet logistics and rescue operations in devastated areas where standard infrastructure has broken down.
+*   **City Planners & Researchers:** To simulate disasters (like a Manhattan flood) to stress-test road resilience and vehicle fleet sizes.
 
 ---
 
@@ -25,28 +22,17 @@ The core engine uses the **Hungarian Algorithm** ($O(V^3)$ bipartite matching) a
 
 ### ⚡ 1. Autopilot vs. Manual Dispatch Modes
 - **`⚡ AUTOPILOT: ON`**: Runs automated dispatch cycles (~every 3s) using optimal bipartite graph matching to pair incoming SOS requests with available rescue squads.
-- **`▶ AUTOPILOT: OFF (MANUAL MODE)`**: Stops automatic background dispatching, enabling dispatchers to retain full manual control over unit assignments.
+- **`▶ AUTOPILOT: OFF (MANUAL MODE)`**: Stops automatic background dispatching, enabling dispatchers to retain full manual control.
 
-### 📍 2. Interactive Map Marker Unit Assignment
-- **Rescue Squad Markers (🚑)**: Click any unit on the Leaflet map to inspect status, current graph node, and manually assign unassigned emergency missions from an inline popup picker.
-- **Emergency Victim Markers (🚨)**: Click any SOS marker to inspect priority, pickup location, assigned squad, or pair an available squad with 1-click (`👉 ASSIGN SELECTED SQUAD`).
+### 🗺 2. ATC-Style Tactical UI & Visualization
+- **HTML5 Canvas Network Map:** Renders a 2,600-edge Manhattan road vector graph natively, bypassing standard DOM limits for lag-free performance with thousands of moving entities.
+- **Visual Tethering & Ghost Routes:** Uses permanent straight cyan dashed lines to visually link assigned units to missions, while flashing **solid blue physical A* routes** on dispatch to show the exact calculated street path.
+- **Interactive UI:** Clickable markers, dynamic map legends, and a high-density glass-free dashboard design.
 
-### 📢 3. Civilian Emergency Complaint & SOS Intake Form
-- **Civilian Intake Modal (`📢 LOG COMPLAINT / SOS`)**: Allows dispatch operators or civilians to lodge custom emergency complaints.
-- Includes reporter details, contact channels, priority selection (`CRITICAL`, `HIGH`, `NORMAL`, `LOW`), landmark location node presets (*Times Square*, *Wall St*, *FDR Drive*, *Brooklyn Bridge*), and situation descriptions.
-- Automatically generates live missions and broadcasts STOMP events into the decision log (`[CIVILIAN_COMPLAINT]`).
-
-### ⚡ 4. Tactical Fleet & Task Control Drawer
-- **Drawer Panel (`⚡ FLEET CONTROL`)**: A slide-out panel for fleet management.
-- Quick actions:
-  - **`✅ END TASK & FREE UNIT`**: Completes a mission and releases the assigned rescue squad back to `AVAILABLE` status at the target node.
-  - **`🔓 FORCE RELEASE UNIT`**: Forcibly frees an occupied rescue squad.
-  - **`📍 LOCATE`**: Focuses the map on specific graph nodes.
-
-### 🛣️ 5. Dynamic Pathfinding & 5-Rung Rerouting Ladder
-- **Bidirectional A* Algorithm**: In-memory graph traversal across sparse Compressed Sparse Row (CSR) arrays.
+### 🛣️ 3. Dynamic Pathfinding & 5-Rung Rerouting Ladder
+- **Bidirectional A* Algorithm**: Custom in-memory graph traversal across sparse Compressed Sparse Row (CSR) arrays.
 - **5-Rung Escalation Ladder**:
-  1. *Rung 1*: Reroute same unit around blocked roads via alternate A* path.
+  1. *Rung 1*: Reroute same unit around blocked roads via alternate path.
   2. *Rung 2*: Reassign to a closer available unit.
   3. *Rung 3*: Reshuffle unit off a lower-priority mission.
   4. *Rung 4*: Capacity split simulation.
@@ -54,81 +40,39 @@ The core engine uses the **Hungarian Algorithm** ($O(V^3)$ bipartite matching) a
 
 ---
 
-## 🏛️ Architecture & Tech Stack
+## 🏗 Architecture & Tech Stack
 
-```
-   ┌─────────────────────────────────────────────────────────────┐
-   │                React 18 + Leaflet Web GIS                   │
-   │      (Autopilot / Manual Mode, Marker Popups, Drawer)       │
-   └──────────────────────────────┬──────────────────────────────┘
-                                  │ STOMP over WebSocket & HTTP REST API
-   ┌──────────────────────────────▼──────────────────────────────┐
-   │                 Spring Boot 3.3.3 API Server                │
-   │  - DispatchService (Hungarian Solver & 5-Rung Ladder)      │
-   │  - NotificationService (WebSocket STOMP Broker)             │
-   │  - RoutingEngine (In-Memory CSR Graph Traversal)            │
-   └──────────────────────────────┬──────────────────────────────┘
-                                  │ Fast In-Memory Graph Access
-   ┌──────────────────────────────▼──────────────────────────────┐
-   │        OpenStreetMap (OSM) Lower Manhattan Topology         │
-   │               (1,315 Nodes / 2,682 Edges)                   │
-   └──────────────────────────────┬──────────────────────────────┘
-```
-
-### Performance Metrics:
-- **Dijkstra Traversal:** ~9,160 QPS (p95: 400µs, p50: 82µs)
-- **Bidirectional A*:** ~6,015 QPS (p95: 424µs, p50: 137µs)
-- **WebSocket Broadcast Latency:** Sub-50ms propagation across all clients
+- **Backend:** Java 21, Spring Boot 3, PostgreSQL
+  - Features a custom `SimulationClock` to run faster/slower than real-time, and a native in-memory graph routing engine.
+- **Frontend:** React 18, Vite, Leaflet, HTML5 Canvas
+- **Real-Time Layer:** WebSocket (STOMP/SockJS) for sub-second telemetry streaming.
+- **Infrastructure:** Docker, Docker Compose, Nginx
 
 ---
 
-## 🛠️ Quick Start (Local Development)
+## ☁️ AWS Cloud Infrastructure
+
+The production environment is securely deployed on **AWS (Amazon Web Services)**:
+- **Amazon EC2 (Elastic Compute Cloud):** A single scalable compute instance hosts the entire multi-container stack.
+- **Docker Compose Orchestration:** Spins up isolated containers for the PostgreSQL Database, Java Backend API, and React/Nginx Frontend Server.
+- **AWS Security Groups:** Acts as a virtual firewall, strictly managing inbound/outbound traffic by opening Port 22 (SSH) for administration and Port 80/8080 for web and WebSocket traffic.
+
+---
+
+## 🛠 Quick Start (Run Locally)
+
+The entire project is heavily containerized. You can run the entire stack (Database, Backend, Frontend) with a single command:
 
 ### Prerequisites
-- **Java 21**
-- **Node.js 18+**
-- **Maven**
+- **Docker** and **Docker Compose** installed.
 
-### 1. Build and Run Frontend (Vite + React)
+### Start the Stack
 ```bash
-cd frontend
-npm install
-npm run dev
+# Clone the repository
+git clone https://github.com/Snorlax231155/resqmesh.git
+cd resqmesh
+
+# Build and start all containers
+docker compose up --build -d
 ```
-
-### 2. Start Backend Engine
-```bash
-# From project root
-./mvnw spring-boot:run
-```
-
-Open `http://localhost:5173` in your browser.
-
----
-
-## 📦 Single-JAR Deployment (AWS EC2 / Cloud)
-
-ResQMesh compiles into a single, unified fat `.jar` containing static frontend assets:
-
-```bash
-# 1. Build Production Frontend Assets
-cd frontend
-npm run build
-cd ..
-
-# 2. Copy Static Assets to Backend
-rm -rf src/main/resources/static/*
-cp -r frontend/dist/* src/main/resources/static/
-
-# 3. Package Fat JAR
-./mvnw clean package -DskipTests
-
-# 4. Launch on Production Server
-java -jar target/resqmesh-0.0.1-SNAPSHOT.jar
-```
-
----
-
-## 📜 License
-
-MIT License — Built for disaster relief hackathons and emergency services optimization.
+Once the containers spin up, simply open `http://localhost:8080` in your browser to access the tactical dashboard!
