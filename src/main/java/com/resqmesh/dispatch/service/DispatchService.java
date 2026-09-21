@@ -114,7 +114,7 @@ public class DispatchService {
             notificationService.broadcastAgentUpdate(selectedAgent);
             
             if (candidate.getRouteNodeIds() != null && !candidate.getRouteNodeIds().isEmpty()) {
-                notificationService.broadcastAgentRepositioned(new com.resqmesh.dispatch.dto.AgentRepositionedEvent(
+                notificationService.broadcastAgentRepositioned(new com.resqmesh.network.dto.AgentRepositionedEvent(
                         selectedAgent.getId(),
                         selectedAgent.getAgentCode(),
                         mission.getPickupNodeId(),
