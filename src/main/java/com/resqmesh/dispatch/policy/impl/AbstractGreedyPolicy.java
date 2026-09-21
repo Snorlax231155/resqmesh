@@ -27,6 +27,7 @@ public abstract class AbstractGreedyPolicy implements TriagePolicy {
             Agent bestAgent = null;
             int lowestTime = Integer.MAX_VALUE;
             List<String> bestRoute = null;
+            List<String> bestRouteNodes = null;
 
             for (Agent agent : pool) {
                 RouteResponse r1 = engine.bidirectionalAStar(agent.getCurrentNodeId(), mission.getPickupNodeId());
@@ -39,13 +40,16 @@ public abstract class AbstractGreedyPolicy implements TriagePolicy {
                     lowestTime = time;
                     bestAgent = agent;
                     bestRoute = new ArrayList<>();
+                    bestRouteNodes = new ArrayList<>();
                     if (r1.getRoadPath() != null) bestRoute.addAll(r1.getRoadPath());
                     if (r2.getRoadPath() != null) bestRoute.addAll(r2.getRoadPath());
+                    if (r1.getNodePath() != null) bestRouteNodes.addAll(r1.getNodePath());
+                    if (r2.getNodePath() != null) bestRouteNodes.addAll(r2.getNodePath());
                 }
             }
 
             if (bestAgent != null) {
-                assignments.add(new Assignment(mission, bestAgent, lowestTime, bestRoute, rationale(mission, bestAgent)));
+                assignments.add(new Assignment(mission, bestAgent, lowestTime, bestRoute, bestRouteNodes, rationale(mission, bestAgent)));
                 pool.remove(bestAgent);
             }
         }

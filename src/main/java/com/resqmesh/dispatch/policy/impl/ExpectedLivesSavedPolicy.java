@@ -80,10 +80,11 @@ public class ExpectedLivesSavedPolicy implements TriagePolicy {
                 RouteResponse r1 = engine.bidirectionalAStar(agent.getCurrentNodeId(), mission.getPickupNodeId());
                 RouteResponse r2 = engine.bidirectionalAStar(mission.getPickupNodeId(), mission.getDestinationNodeId());
                 List<String> route = new ArrayList<>();
-                if (r1.getRoadPath() != null) route.addAll(r1.getRoadPath());
-                if (r2.getRoadPath() != null) route.addAll(r2.getRoadPath());
+                List<String> routeNodeIds = new ArrayList<>();
+                if (r1.getNodePath() != null) routeNodeIds.addAll(r1.getNodePath());
+                if (r2.getNodePath() != null) routeNodeIds.addAll(r2.getNodePath());
                 
-                assignments.add(new Assignment(mission, agent, time, route, rationale(mission, agent)));
+                assignments.add(new Assignment(mission, agent, time, route, routeNodeIds, rationale(mission, agent)));
             }
         }
 

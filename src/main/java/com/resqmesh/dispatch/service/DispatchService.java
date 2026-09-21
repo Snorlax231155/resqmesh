@@ -113,6 +113,15 @@ public class DispatchService {
             notificationService.broadcastMissionUpdate(mission);
             notificationService.broadcastAgentUpdate(selectedAgent);
             
+            if (candidate.getRouteNodeIds() != null && !candidate.getRouteNodeIds().isEmpty()) {
+                notificationService.broadcastAgentRepositioned(new com.resqmesh.dispatch.dto.AgentRepositionedEvent(
+                        selectedAgent.getId(),
+                        selectedAgent.getAgentCode(),
+                        mission.getPickupNodeId(),
+                        candidate.getRouteNodeIds()
+                ));
+            }
+            
             log.info("Assigned Mission {} to Agent {} via {}", mission.getMissionCode(), selectedAgent.getAgentCode(), activePolicy.name());
         }
         
